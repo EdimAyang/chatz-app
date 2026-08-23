@@ -141,40 +141,40 @@ const Profile = () => {
         </Back>
         <Title>Profile</Title>
       </Header>
+      <Wrapper>
+        <Hero>
+          <AvatarWrap>
+            <Avatar
+              src={
+                preview
+                  ? preview
+                  : profile?.data.avatar
+                    ? profile.data.avatar
+                    : "https://i.pravatar.cc/200?u=me"
+              }
+              size={104}
+            />
+            <CamBtn
+              whileTap={{ scale: 0.9 }}
+              aria-label="Change photo"
+              onClick={openFilePicker}
+            >
+              <Camera size={16} />
+            </CamBtn>
 
-      <Hero>
-        <AvatarWrap>
-          <Avatar
-            src={
-              preview
-                ? preview
-                : profile?.data.avatar
-                  ? profile.data.avatar
-                  : "https://i.pravatar.cc/200?u=me"
-            }
-            size={104}
-          />
-          <CamBtn
-            whileTap={{ scale: 0.9 }}
-            aria-label="Change photo"
-            onClick={openFilePicker}
-          >
-            <Camera size={16} />
-          </CamBtn>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              hidden
+              onChange={handleFileChange}
+            />
+          </AvatarWrap>
+          <Name>{values.username}</Name>
+          <Bio>{values.bio}</Bio>
+        </Hero>
 
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            hidden
-            onChange={handleFileChange}
-          />
-        </AvatarWrap>
-        <Name>{values.username}</Name>
-        <Bio>{values.bio}</Bio>
-      </Hero>
-
-      {/* <Stats>
+        {/* <Stats>
         <Stat>
           <StatN>
             <Icon>
@@ -201,38 +201,41 @@ const Profile = () => {
         </Stat>
       </Stats> */}
 
-      <Card>
-        {fields.map((f, i) => (
-          <div key={f.key}>
-            <Field>
-              <Icon>{f.icon}</Icon>
-              <FieldInfo>
-                <FieldLabel>{f.label}</FieldLabel>
-                <FieldValue>{values[f.key]}</FieldValue>
-              </FieldInfo>
-            </Field>
-            {i < fields.length - 1 && <Divider />}
-          </div>
-        ))}
-      </Card>
+        <Card>
+          {fields.map((f, i) => (
+            <div key={f.key}>
+              <Field>
+                <Icon>{f.icon}</Icon>
+                <FieldInfo>
+                  <FieldLabel>{f.label}</FieldLabel>
+                  <FieldValue>{values[f.key]}</FieldValue>
+                </FieldInfo>
+              </Field>
+              {i < fields.length - 1 && <Divider />}
+            </div>
+          ))}
+        </Card>
 
-      <Actions>
-        <Button
-          full
-          variant="secondary"
-          onClick={() => {
-            if (preview) {
-              uploadAvatar();
-            } else {
-              setEditing(true);
-            }
-          }}
-          isLoading={updateProfileAvatarMutation.isPending}
-        >
-          <Pencil size={16} />
-          {updateProfileAvatarMutation.isPending ? "updating" : " Edit profile"}
-        </Button>
-      </Actions>
+        <Actions>
+          <Button
+            full
+            variant="secondary"
+            onClick={() => {
+              if (preview) {
+                uploadAvatar();
+              } else {
+                setEditing(true);
+              }
+            }}
+            isLoading={updateProfileAvatarMutation.isPending}
+          >
+            <Pencil size={16} />
+            {updateProfileAvatarMutation.isPending
+              ? "updating"
+              : " Edit profile"}
+          </Button>
+        </Actions>
+      </Wrapper>
 
       {editing && (
         <BottomSheet open={editing} onClose={() => setEditing(false)}>
@@ -268,6 +271,12 @@ const Profile = () => {
 };
 
 export default Profile;
+
+const Wrapper = styled.div`
+  overflow: auto;
+  height: 100vh;
+  
+`;
 
 const ProfileForm = styled.form`
   display: flex;

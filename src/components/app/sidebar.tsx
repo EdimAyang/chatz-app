@@ -58,10 +58,6 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
     }
   };
 
-  // if (isLoading) {
-  //   return <LoadingScreen />;
-  // }
-
   return (
     <SidebarWrapper>
       {/* LEFT NAVIGATION RAIL */}
@@ -177,6 +173,12 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
           )}
 
           {!collapsed && <SectionTitle>Chats</SectionTitle>}
+          {!conversations && (
+            <EmptyState
+              title="conversation"
+              description="no conversation found"
+            />
+          )}
 
           <ConversationList>
             {conversations?.map((item) => (
@@ -216,35 +218,6 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
                 )}
               </ConversationItem>
             ))}
-            {/* <ConversationItem>
-              <Avatar>J</Avatar>
-
-              {!collapsed && (
-                <ConversationContent>
-                  <ConversationTop>
-                    <UserName>John Doe</UserName>
-                    <Time>10:30 AM</Time>
-                  </ConversationTop>
-
-                  <LastMessage>Hey, how are you doing?</LastMessage>
-                </ConversationContent>
-              )}
-            </ConversationItem> */}
-
-            {/* <ConversationItem>
-              <Initials>D</Av>
-
-              {!collapsed && (
-                <ConversationContent>
-                  <ConversationTop>
-                    <UserName>David</UserName>
-                    <Time>Monday</Time>
-                  </ConversationTop>
-
-                  <LastMessage>Thanks!</LastMessage>
-                </ConversationContent>
-              )}
-            </ConversationItem> */}
           </ConversationList>
         </ConversationSection>
       </ConversationSidebar>

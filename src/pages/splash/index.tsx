@@ -2,7 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { useEffect } from "react";
 import styled from "styled-components";
 import { motion } from "framer-motion";
-import { MessageCircle, MessageSquare } from "lucide-react";
+import { MessageSquare } from "lucide-react";
 import { MobileFrame } from "@/components/app/MobileFrame";
 import { useAuthStore } from "@/store/auth.store";
 import { PATHS } from "@/lib/paths";

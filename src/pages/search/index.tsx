@@ -12,9 +12,7 @@ import { useDebounce } from "#/hooks/useDebounce";
 import { getConversationBetween } from "#/api/conversation.api";
 import { LoadingScreen } from "#/components/app/Loader";
 
-
-
-const SearchScreen = ()=> {
+const SearchScreen = () => {
   const [query, setQuery] = useState("");
   const debounceQuery = useDebounce(query, 1000);
   const { data, isLoading } = useGetConversationsQuery("50", debounceQuery);
@@ -101,16 +99,16 @@ const SearchScreen = ()=> {
       {/* )} */}
     </MobileFrame>
   );
-}
+};
 
-export default SearchScreen
+export default SearchScreen;
 
 const Wrapper = styled.div`
   display: flex;
   flex: 1;
   flex-direction: column;
   flex: 1;
-  min-height: 0;
+  height: 100;
   overflow-y: auto;
   padding: 12px;
   padding-bottom: 20px;
