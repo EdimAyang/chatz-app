@@ -2,6 +2,8 @@ import axios from "axios";
 import { useAuthStore } from "@/store/auth.store";
 import { BASE_URL } from "@/api/endpoints";
 
+let isRedirectingToLogin = false;
+
 export const api = axios.create({
   baseURL: BASE_URL,
 });
@@ -21,10 +23,15 @@ api.interceptors.request.use(
 
 api.interceptors.response.use(
   (response) => response,
-
   (error) => {
-    if (error.response?.status === 401) {
-      console.log("Unauthorized");
+    const status = error.response?.status;
+
+    if ((status === 401 || status === 403) && !isRedirectingToLogin) {
+      isRedirectingToLogin = true;
+
+      useAuthStore.getState().logout();
+
+      window.location.href = "/login";
     }
 
     return Promise.reject(error);
