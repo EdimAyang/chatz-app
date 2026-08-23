@@ -69,15 +69,15 @@ const SearchScreen = () => {
           <Section>
             <SectionTitle>PEOPLE</SectionTitle>
             {conversations?.map((p) => (
-              <Row key={p.id} onClick={() => handleSearchClick(p.recipient.id)}>
+              <Row key={p?.id} onClick={() => handleSearchClick(p?.recipient?.id)}>
                 <Avatar
                   src={p?.recipient?.avatarUrl ?? ""}
                   size={48}
-                  online={p.recipient.isOnline}
+                  online={p?.recipient?.isOnline ?? false}
                 />
                 <Meta>
-                  <Name>{p.recipient.username}</Name>
-                  <Last>{p.lastMessage.message}</Last>
+                  <Name>{p?.recipient?.username ?? ''}</Name>
+                  <Last>{p?.lastMessage?.message ?? ''}</Last>
                 </Meta>
               </Row>
             ))}
