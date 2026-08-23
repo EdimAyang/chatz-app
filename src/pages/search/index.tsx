@@ -11,11 +11,13 @@ import { useGetConversationsQuery } from "#/hooks/queries/useConversation";
 import { useDebounce } from "#/hooks/useDebounce";
 import { getConversationBetween } from "#/api/conversation.api";
 import { LoadingScreen } from "#/components/app/Loader";
+import { useAuthStore } from "#/store/auth.store";
 
 const SearchScreen = () => {
   const [query, setQuery] = useState("");
+  const { isAuthenticated } = useAuthStore();
   const debounceQuery = useDebounce(query, 1000);
-  const { data, isLoading } = useGetConversationsQuery("50", debounceQuery);
+  const { data, isLoading } = useGetConversationsQuery("50", debounceQuery, isAuthenticated);
   const navigate = useNavigate();
 
   const conversations = useMemo(() => {

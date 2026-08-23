@@ -38,11 +38,11 @@ const Home = () => {
     return <LoadingScreen />;
   }
 
-  if (!data) {
-    return (
-      <EmptyState title="conversation" description="no conversation found" />
-    );
-  }
+  // if (!data) {
+  //   return (
+  //     <EmptyState title="conversation" description="no conversation found" />
+  //   );
+  // }
   return (
     <>
       {isDesktop ? (

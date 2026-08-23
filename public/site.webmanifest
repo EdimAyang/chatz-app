@@ -1,6 +1,6 @@
 {
-  "name": "MessageMe",
-  "short_name": "MessageMe",
+  "name": "Chatz",
+  "short_name": "Chatz",
   "description": "Real-time messaging and watch parties",
   "start_url": "/",
   "scope": "/",
