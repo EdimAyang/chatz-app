@@ -1,6 +1,5 @@
 import { Outlet } from "react-router-dom";
 import styled from "styled-components";
-import { MobileFrame } from "@/components/app/MobileFrame";
 
 
 
@@ -8,11 +7,11 @@ import { MobileFrame } from "@/components/app/MobileFrame";
 const GlobalLayout = () => {
   
   return (
-    <MobileFrame>
+    <div>
       <Content>
         <Outlet />
       </Content>
-    </MobileFrame>
+    </div>
   );
 };
 

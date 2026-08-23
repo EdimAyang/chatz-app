@@ -2,7 +2,7 @@ import { ArrowLeft, ChevronDown } from "lucide-react";
 import { Fragment, useMemo } from "react";
 import styled, { keyframes } from "styled-components";
 import { Avatar } from "@/components/app/Avatar";
-import { MobileFrame } from "@/components/app/MobileFrame";
+// import { MobileFrame } from "@/components/app/MobileFrame";
 import { useAudioRecorder } from "#/hooks/useAudioRecorder";
 import ChatInput from "@/components/app/chatInput";
 import { useGetMessageQuery } from "@/hooks/queries/useGetMessage";
@@ -82,10 +82,9 @@ export default function ChatPage({
       scrollToBottom()
     }
   }, [ourMessages, isTyping]);
-console.log(data)
 
   return (
-    <MobileFrame>
+    <ChatLayout>
       {userData ? (
         <Header>
           <Back onClick={() => window.history.back()} aria-label="Back">
@@ -200,12 +199,22 @@ console.log(data)
         stopRecording={stopRecording}
         recipientId={recipientId ?? ""}
         scrollToBottom={scrollToBottom}
+        isAtBottom={isAtBottom}
       />
-    </MobileFrame>
+    </ChatLayout>
   );
 }
 
 //styles
+
+
+const ChatLayout = styled.div`
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+`;
+
 const Header = styled.header`
   position: fixed;
   top: 0;
@@ -256,8 +265,6 @@ export const Scroll = styled.div`
   min-height: 0;
   overflow-y: auto;
   padding: 12px;
-  padding-bottom: 40px;
-  margin-bottom: 5.7rem;
   margin-top: 4.2rem;
 `;
 const DateDiv = styled.div`

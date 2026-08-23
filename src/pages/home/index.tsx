@@ -14,6 +14,8 @@ import { useWebSocketStore } from "#/store/websocket.store";
 import { LoadingScreen } from "#/components/app/Loader";
 import { PATHS } from "#/lib/paths";
 import { BottomNav } from "@/components/app/BottomNav";
+import { MobileNav } from "#/layouts/appLayouts";
+import DesktopEmptyChat from "#/components/app/EmptyChat";
 // import { EmptyState } from "@/components/app/EmptyState";
 // import toast from "react-hot-toast";
 
@@ -42,6 +44,7 @@ const Home = () => {
 
   return (
     <>
+    <DesktopEmptyChat />
       <Head>
         <Header>
           <Avatar
@@ -122,14 +125,18 @@ const Home = () => {
         />
       )}
 
-      <Fab whileTap={{ scale: 0.92 }} aria-label="New message">
-        <Link to={PATHS.CONTACTS.CONTACTlIST}>
-          <Plus size={22} />
-        </Link>
-      </Fab>
+      <MobileNav>
+        <Fab whileTap={{ scale: 0.92 }} aria-label="New message">
+          <Link to={PATHS.CONTACTS.CONTACTlIST}>
+            <Plus size={22} />
+          </Link>
+        </Fab>
+      </MobileNav>
 
       {/* <Toast show={toast} message="Conversation deleted" /> */}
-      <BottomNav/>
+      <MobileNav>
+        <BottomNav />
+      </MobileNav>
     </>
   );
 };
@@ -143,23 +150,25 @@ const ChatWrapper = styled.div`
   flex: 1;
   overflow: auto;
   position: relative;
-  // padding-top: 15rem;
-  padding-top: 10rem;
-  padding-bottom: 9rem;
+  
+   @media (max-width: 767px) {
+    padding-bottom: 9rem;
+  }
 `;
 
-const Head = styled.div`
+const Head = styled.header`
   width: 100%;
-  position: fixed;
   z-index: 40;
   top: 0;
   left: 0;
   height: auto;
+   padding-block:10px;
   background: ${({ theme }) => theme.colors.background};
+  padding-bottom:4rem;
+ 
 `;
 
-const Header = styled.header`
-  padding: 20px 20px 8px;
+const Header = styled.div`
   display: flex;
   align-items: center;
   gap: 14px;

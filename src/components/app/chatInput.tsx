@@ -1,6 +1,6 @@
 import type { EmojiClickData } from "emoji-picker-react";
 import { motion } from "framer-motion";
-import {  Mic,Send, Smile, XIcon } from "lucide-react";
+import { Mic, Send, Smile, XIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import styled from "styled-components";
@@ -30,6 +30,7 @@ type ChatInputProps = {
   stopRecording: () => void;
   recipientId: string;
   scrollToBottom: () => void;
+  isAtBottom: boolean;
 };
 
 export default function ChatInput({
@@ -42,7 +43,8 @@ export default function ChatInput({
   resetAudio,
   audioBlob,
   recipientId,
-  // scrollToBottom,
+  scrollToBottom,
+  isAtBottom,
 }: ChatInputProps) {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const emojiButtonRef = useRef<HTMLButtonElement | null>(null);
@@ -203,6 +205,12 @@ export default function ChatInput({
     });
   };
 
+  useEffect(() => {
+    if (isAtBottom) {
+      scrollToBottom();
+    }
+  }, [message]);
+
   return (
     <>
       <Composer onSubmit={handleSubmit(onSubmit)}>
@@ -239,7 +247,16 @@ export default function ChatInput({
           </CBtn> */}
         </TextWrap>
         {message.trim() ? (
-          <SendBtn type="submit" whileTap={{ scale: 0.92 }} aria-label="Send">
+          <SendBtn
+            type="submit"
+            whileTap={{ scale: 0.92 }}
+            aria-label="Send"
+            onClick={() => {
+              if (isAtBottom) {
+                scrollToBottom();
+              }
+            }}
+          >
             <Send size={20} />
           </SendBtn>
         ) : (
@@ -292,7 +309,10 @@ export default function ChatInput({
                 Stop Recording
               </SendRecBtn>
             ) : (
-              <SendRecBtn onClick={() => handleSendAudio()} isLoading={sendAudioMutation.isPending}>
+              <SendRecBtn
+                onClick={() => handleSendAudio()}
+                isLoading={sendAudioMutation.isPending}
+              >
                 <Send size={16} />
                 Send Recording
               </SendRecBtn>
@@ -305,9 +325,8 @@ export default function ChatInput({
 }
 
 const Composer = styled.form`
-  position: fixed;
-  bottom: 0;
-  left: 0;
+  flex-shrink: 0;
+  // flex:1;
   background: ${({ theme }) => theme.colors.background};
   backdrop-filter: saturate(180%) blur(20px);
   border-top: 1px solid ${({ theme }) => theme.colors.border};

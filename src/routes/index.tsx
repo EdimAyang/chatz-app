@@ -13,7 +13,7 @@ import SettingsPage from "@/pages/settings";
 import ChatPage from "@/pages/chat/index";
 import NewChat from "@/pages/chat/new";
 import Splash from "@/pages/splash/index";
-// import ErrorComponent from "#/components/app/ErrorComponent";
+import ErrorComponent from "#/components/app/ErrorComponent";
 import NotFound from "#/components/app/NotFound";
 import { PATHS } from "../lib/paths";
 import ProtectedRoute from "./ProtectedRoute";
@@ -48,7 +48,9 @@ export const router = createBrowserRouter([
     element: <ProtectedRoute />,
     children: [
       {
+        id:"app",
         element: <AppLayout />,
+        errorElement:<ErrorComponent/>,
         children: [
           {
             path: PATHS.CHAT.HOME,
