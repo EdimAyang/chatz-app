@@ -20,7 +20,7 @@ import { EmptyBoxIcon } from "../icons/emptyBox";
 import { Avatar } from "./Avatar";
 import { formatTime } from "#/utils/dates";
 import { Badge } from "./Badge";
-import { useUserProfile } from "#/store/auth.store";
+import { useAuthStore, useUserProfile } from "#/store/auth.store";
 import { useWebSocketStore } from "#/store/websocket.store";
 import { useDebounce } from "#/hooks/useDebounce";
 import { getConversationBetween } from "#/api/conversation.api";
@@ -33,12 +33,13 @@ interface SidebarProps {
 const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
   const navigate = useNavigate();
   const { pathname } = useLocation();
+  const { isAuthenticated } = useAuthStore();
 
   const isActive = (path: string) => pathname === path;
 
   const [query, setQuery] = useState("");
   const debounceQuery = useDebounce(query, 1000);
-  const { data, isLoading } = useGetConversationsQuery("50", debounceQuery);
+  const { data, isLoading } = useGetConversationsQuery("50", debounceQuery, isAuthenticated);
   const { profile } = useUserProfile();
   const { isConnected } = useWebSocketStore();
 
@@ -164,19 +165,13 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
         {/* CONVERSATIONS */}
         <ConversationSection $collapsed={collapsed}>
           {isLoading && <LoadingScreen />}
-          {!data && (
-            <EmptyState
-              title="No conversation Found"
-              description="create a conversation with your friends"
-              icon={<EmptyBoxIcon size={24} />}
-            />
-          )}
-
+       
           {!collapsed && <SectionTitle>Chats</SectionTitle>}
           {!conversations && (
             <EmptyState
               title="conversation"
               description="no conversation found"
+               icon={<EmptyBoxIcon size={24} />}
             />
           )}
 
