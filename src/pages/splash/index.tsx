@@ -2,7 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { useEffect } from "react";
 import styled from "styled-components";
 import { motion } from "framer-motion";
-import { MessageCircle } from "lucide-react";
+import { MessageSquare } from "lucide-react";
 import { MobileFrame } from "@/components/app/MobileFrame";
 import { useAuthStore } from "@/store/auth.store";
 import { PATHS } from "@/lib/paths";
@@ -61,7 +61,7 @@ const Splash = () => {
           animate={{ scale: 1, opacity: 1, rotate: 0 }}
           transition={{ type: "spring", stiffness: 220, damping: 18 }}
         >
-          <MessageCircle
+          <MessageSquare
             size={52}
             strokeWidth={2.4}
             fill="rgba(255,255,255,0.15)"

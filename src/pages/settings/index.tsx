@@ -9,9 +9,8 @@ import { useAuthStore, useUserProfile } from "@/store/auth.store";
 import { PATHS } from "@/lib/paths";
 import { useWebSocketStore } from "@/store/websocket.store";
 import InstallButton from "#/components/app/installationButton";
-import { BottomNav } from "@/components/app/BottomNav";
-
-
+import { BottomNav } from "#/components/app/BottomNav";
+import { MobileNav } from "#/layouts/appLayouts";
 
 const Header = styled.header`
   padding: 24px 20px 8px;
@@ -104,7 +103,7 @@ const LogoutBtn = styled.button`
   margin-bottom: 7rem;
 `;
 
-const Settings =()=> {
+const Settings = () => {
   const { mode, toggle } = useThemeStore();
   const dark = mode === "dark";
   // const nav = useNavigate();
@@ -215,9 +214,12 @@ const Settings =()=> {
       <LogoutBtn onClick={() => handleLogout()}>
         <LogOut size={18} /> Log out
       </LogoutBtn>
-      <BottomNav/>
+
+      <MobileNav>
+        <BottomNav />
+      </MobileNav>
     </>
   );
-}
+};
 
-export default Settings
+export default Settings;

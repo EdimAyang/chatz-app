@@ -1,10 +1,11 @@
 import styled from "styled-components";
 
-const Wrap = styled.div<{ $size: number }>`
+const Wrap = styled.div<{ $size: number, $space:number }>`
   position: relative;
   width: ${({ $size }) => $size}px;
   height: ${({ $size }) => $size}px;
   flex-shrink: 0;
+  margin-bottom: ${({$space})=> $space}rem;
 `;
 const Img = styled.img`
   width: 100%; height: 100%; border-radius: 50%; object-fit: cover;
@@ -30,10 +31,10 @@ const Ring = styled.div<{ $size: number; $story?: boolean }>`
 `;
 
 export function Avatar({
-  src, alt = "", size = 48, online, story,
-}: { src: string; alt?: string; size?: number; online?: boolean; story?: boolean }) {
+  src, alt = "", size = 48, online, story, space,
+}: { src: string; alt?: string; size?: number; online?: boolean; story?: boolean, space?:number }) {
   const inner = (
-    <Wrap $size={size}>
+    <Wrap $size={size} $space={space!}>
       <Img src={src} alt={alt} />
       {online && <Dot $size={size} />}
     </Wrap>

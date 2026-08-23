@@ -66,7 +66,7 @@ export const useWebSocketStore = create<WebSocketState>((set, get) => ({
       return;
     }
 
-    const socket = new WebSocket(`ws://localhost:5500?token=${token}`);
+    const socket = new WebSocket(`${import.meta.env.VITE_WS_URL}?token=${token}`);
 
     socket.onopen = () => {
       console.log("🟢 Websocket connected");

@@ -9,6 +9,7 @@ import { createConversation } from "#/api/conversation.api";
 import { LoadingScreen } from "#/components/app/Loader";
 // import { Button } from "#/components/app/Button";
 import { BottomNav } from "@/components/app/BottomNav";
+import { MobileNav } from "#/layouts/appLayouts";
 
 const Contacts = () => {
   const [q, setQ] = useState("");
@@ -101,7 +102,9 @@ const Contacts = () => {
           </Group>
         ))}
       </Wrapper>
-      <BottomNav />
+      <MobileNav>
+        <BottomNav />
+      </MobileNav>
     </>
   );
 };
