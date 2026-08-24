@@ -326,7 +326,6 @@ export default function ChatInput({
 
 const Composer = styled.form`
   flex-shrink: 0;
-  // flex:1;
   background: ${({ theme }) => theme.colors.background};
   backdrop-filter: saturate(180%) blur(20px);
   border-top: 1px solid ${({ theme }) => theme.colors.border};
@@ -373,7 +372,7 @@ const TextArea = styled.textarea`
   outline: none;
   background: transparent;
   resize: none;
-  font-size: 15px;
+  font-size: 16px;
   padding: 8px 4px;
   max-height: 110px;
   min-height: 24px;

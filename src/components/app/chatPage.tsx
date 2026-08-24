@@ -39,10 +39,9 @@ export default function ChatPage({
 
   useEffect(() => {
     if (createdConversationId) {
-      navigate(`${PATHS.CHAT.CHAT(conversationId ?? '')}`);
+      navigate(`${PATHS.CHAT.CHAT(conversationId ?? "")}`);
     }
   }, [createdConversationId]);
-
 
   const firstPage = data?.pages?.[0];
 
@@ -71,15 +70,15 @@ export default function ChatPage({
   const RecipientAvatar = firstPage?.recipient?.user?.avatarUrl ?? "";
   const RecipientName = firstPage?.recipient?.user?.username ?? "";
   const RecipientLastSeen = firstPage?.recipient?.user?.lastSeen ?? "";
-  const RecipientIsOnline =  firstPage?.recipient?.user?.isOnline ?? false;
+  const RecipientIsOnline = firstPage?.recipient?.user?.isOnline ?? false;
 
   useEffect(() => {
     scrollToBottom();
   }, []);
 
-   useEffect(() => {
-    if(isAtBottom && isTyping){
-      scrollToBottom()
+  useEffect(() => {
+    if (isAtBottom && isTyping) {
+      scrollToBottom();
     }
   }, [ourMessages, isTyping]);
 
@@ -207,17 +206,14 @@ export default function ChatPage({
 
 //styles
 
-
 const ChatLayout = styled.div`
-  height: 100%;
+  height: 100dvh;
   display: flex;
   flex-direction: column;
-  min-width: 0;
 `;
 
 const Header = styled.header`
-  position: fixed;
-  top: 0;
+	flex-shrink: 0;
   z-index: 10;
   background:  ${({ theme }) => theme.colors.background});
   backdrop-filter: saturate(180%) blur(20px);
