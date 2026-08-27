@@ -2,7 +2,6 @@ import { useNavigate } from "react-router-dom";
 import { useMemo, useState } from "react";
 import styled from "styled-components";
 import { ArrowLeft } from "lucide-react";
-import { MobileFrame } from "@/components/app/MobileFrame";
 import { SearchBar } from "@/components/app/SearchBar";
 import { Avatar } from "@/components/app/Avatar";
 import { EmptyState } from "@/components/app/EmptyState";
@@ -41,7 +40,7 @@ const SearchScreen = () => {
   };
 
   return (
-    <MobileFrame>
+    <>
       <Header>
         <Back onClick={() => window.history.back()} aria-label="Back">
           <ArrowLeft size={20} />
@@ -99,7 +98,7 @@ const SearchScreen = () => {
           ))} */}
       {/* </Section> */}
       {/* )} */}
-    </MobileFrame>
+    </>
   );
 };
 
@@ -114,13 +113,14 @@ const Wrapper = styled.div`
   overflow-y: auto;
   padding: 12px;
   padding-bottom: 20px;
+  
 `;
 
 const Header = styled.header`
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 16px 20px;
+  padding-block: 10px;
 `;
 const Back = styled.button`
   width: 40px;
@@ -134,9 +134,12 @@ const Back = styled.button`
 `;
 const SearchWrap = styled.div`
   flex: 1;
+  // width:100%;
 `;
 const Section = styled.div`
   padding: 8px 0 16px;
+  overflow-y:auto;
+  // width:100%;
 `;
 const SectionTitle = styled.h3`
   padding: 12px 20px 8px;
