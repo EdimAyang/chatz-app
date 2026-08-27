@@ -6,6 +6,7 @@ import { useAuthStore, useUserProfile } from "@/store/auth.store";
 import { useWebSocketStore } from "@/store/websocket.store";
 import { useEffect } from "react";
 import toast from "react-hot-toast";
+import { useWebSocket } from "#/hooks/useWebsocket";
 
 const ProtectedRoute = () => {
   const { isAuthenticated, hydrated, user, token } = useAuthStore();
@@ -14,6 +15,8 @@ const ProtectedRoute = () => {
   const { connect } = useWebSocketStore();
 
   const { data, error } = useProfileQuery(user?.id || "");
+
+	useWebSocket(token);
 
   useEffect(() => {
     if (error) {
