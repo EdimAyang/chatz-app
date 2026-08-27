@@ -261,7 +261,7 @@ export const Scroll = styled.div`
   min-height: 0;
   overflow-y: auto;
   padding: 12px;
-  margin-top: 4.2rem;
+  
 `;
 const DateDiv = styled.div`
   text-align: center;
