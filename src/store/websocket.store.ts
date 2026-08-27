@@ -154,7 +154,7 @@ export const useWebSocketStore = create<WebSocketState>((set, get) => ({
       });
     };
 
-    socket.onerror = (error:any) => {
+    socket.onerror = (error: any) => {
       toast.error("WebSocket error:", error.message);
     };
 
@@ -233,6 +233,10 @@ export const useWebSocketStore = create<WebSocketState>((set, get) => ({
             queryKey: ["conversations"],
           });
 
+          // queryClient.invalidateQueries({
+          //   queryKey: ["messages", payload.conversationId],
+          // });
+
           if (payload.conversationId) {
             set({
               createdConversationId: payload.conversationId,
@@ -289,5 +293,8 @@ export const useWebSocketStore = create<WebSocketState>((set, get) => ({
     }
 
     socket.send(JSON.stringify(payload));
+    queryClient.invalidateQueries({
+      queryKey: ["messages", payload.conversationId],
+    });
   },
 }));
