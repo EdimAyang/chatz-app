@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useWebSocketStore } from "@/store/websocket.store";
-import toast from "react-hot-toast";
+// import toast from "react-hot-toast";
 
 
 
@@ -21,7 +21,7 @@ export function useWebSocket(token: string | null) {
         useWebSocketStore.getState();
 
       if (!isConnected && !isConnecting) {
-        toast.success("🌐 Internet restored. Connecting WebSocket...");
+        console.log("🌐 Network online. Checking WebSocket...");
 
         connect();
       }

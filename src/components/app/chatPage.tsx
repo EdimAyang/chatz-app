@@ -1,5 +1,5 @@
 import { ArrowLeft, ChevronDown } from "lucide-react";
-import { Fragment, useMemo } from "react";
+import { Fragment, useMemo, useRef } from "react";
 import styled, { keyframes } from "styled-components";
 import { Avatar } from "@/components/app/Avatar";
 // import { MobileFrame } from "@/components/app/MobileFrame";
@@ -16,6 +16,8 @@ import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { MessageRenderer } from "./messageRenderer";
 import { PATHS } from "#/lib/paths";
+import { SocketEvent } from "#/lib/constants";
+import { queryClient } from "@/lib/query-client";
 
 type ChatPageProps = {
   conversationId?: string;
@@ -27,6 +29,7 @@ export default function ChatPage({
   recipientId,
 }: ChatPageProps) {
   const { profile } = useUserProfile();
+  console.log(conversationId, recipientId, "conversationId, recipientId");
 
   const { data } = useGetMessageQuery(conversationId ?? "", "100");
   const { data: userData } = useGetUserQuery(recipientId ?? "");
@@ -55,7 +58,7 @@ export default function ChatPage({
     resetAudio,
   } = useAudioRecorder();
 
-  const { typingKey, typingUserId } = useWebSocketStore();
+  const { typingKey, typingUserId, send } = useWebSocketStore();
 
   const isTyping =
     typingKey === conversationId && typingUserId !== profile?.data.id;
@@ -63,6 +66,33 @@ export default function ChatPage({
   const ourMessages = useMemo(() => {
     return data?.pages.flatMap((page) => page.messages) ?? [];
   }, [data]);
+
+  const markedReadRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (!conversationId || !profile?.data.id) return;
+
+    const unreadMessages = ourMessages.filter(
+      (message) =>
+        message.senderId !== profile.data.id &&
+        message.isRead === false &&
+        !markedReadRef.current.has(message.id),
+    );
+
+    if (!unreadMessages.length) return;
+
+    unreadMessages.forEach((message) => {
+      markedReadRef.current.add(message.id);
+    });
+
+    unreadMessages.forEach((message) => {
+      send({
+        type: SocketEvent.READ_RECEIPT,
+        conversationId,
+        messageId: message.id,
+      });
+    });
+  }, [conversationId, profile?.data.id, ourMessages, send]);
 
   const { isAtBottom, scrollToBottom, handleScroll, bottomRef, containerRef } =
     useNewMsgTrigger(data ?? []);
@@ -80,7 +110,7 @@ export default function ChatPage({
     if (isAtBottom && isTyping) {
       scrollToBottom();
     }
-  }, [ourMessages, isTyping]);
+  }, [ourMessages, isTyping, isAtBottom]);
 
   return (
     <ChatLayout>
@@ -135,7 +165,7 @@ export default function ChatPage({
           </HBtn> */}
         </Header>
       )}
-      {ourMessages && (
+      {ourMessages.length > 0 && (
         <Scroll ref={containerRef} onScroll={() => handleScroll()}>
           {ourMessages.map((m, index) => {
             const previous = ourMessages[index - 1];
@@ -261,7 +291,6 @@ export const Scroll = styled.div`
   min-height: 0;
   overflow-y: auto;
   padding: 12px;
-  
 `;
 const DateDiv = styled.div`
   text-align: center;

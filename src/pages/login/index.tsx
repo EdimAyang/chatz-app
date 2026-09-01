@@ -102,7 +102,7 @@ const Login = () => {
   return (
     <MobileFrame>
       <Wrap>
-        <H1>Welcome back 👋</H1>
+        <H1>Welcome back</H1>
         <Sub>Log in to continue your conversations.</Sub>
 
         <Form onSubmit={handleSubmit(onSubmit)}>
@@ -124,7 +124,7 @@ const Login = () => {
             error={errors.password?.message}
           />
           <Row>
-            <TextLink to="/login">Forgot password?</TextLink>
+            <TextLink to={PATHS.AUTH.FORGOT_PASSWORD}>Forgot password?</TextLink>
           </Row>
           <Button full isLoading={login.isPending}>
             Log In

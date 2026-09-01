@@ -21,8 +21,21 @@ export const useNewMsgTrigger = (messages: any) => {
 	}, []);
 
 	const scrollToBottom = () => {
-		bottomRef.current?.scrollIntoView({
-			behavior: "smooth",
+		const el = containerRef.current;
+
+		if (!el) {
+			bottomRef.current?.scrollIntoView({
+				behavior: "smooth",
+				block: "end",
+			});
+			return;
+		}
+
+		requestAnimationFrame(() => {
+			el.scrollTo({
+				top: el.scrollHeight,
+				behavior: "smooth",
+			});
 		});
 	};
 

@@ -1,5 +1,6 @@
 import styled from "styled-components";
 import { motion } from "framer-motion";
+import { Check, CheckCheck } from "lucide-react";
 
 const Row = styled.div<{ $mine: boolean }>`
   display: flex;
@@ -19,13 +20,30 @@ const Bubble = styled(motion.div)<{ $mine: boolean }>`
   line-height: 1.35;
   word-wrap: break-word;
 `;
-const Time = styled.span<{ $mine: boolean }>`
-  display: block;
-  font-size: 10.5px;
+const Meta = styled.div<{ $mine: boolean }>`
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
   margin-top: 4px;
-  text-align: right;
+`;
+const Time = styled.span<{ $mine: boolean }>`
+  display: inline-block;
+  font-size: 10.5px;
   opacity: 0.7;
   color: ${({ $mine }) => ($mine ? "rgba(255,255,255,0.9)" : "#7A7A7A")};
+`;
+const StatusIcon = styled.span<{ $mine: boolean; $read: boolean }>`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: ${({ $mine, $read }) =>
+    $mine
+      ? $read
+        ? "rgba(255,255,255,0.95)"
+        : "rgba(255,255,255,0.75)"
+      : "#7A7A7A"};
+  opacity: ${({ $read }) => ($read ? 1 : 0.8)};
 `;
 const ImgWrap = styled.div`
   border-radius: 18px;
@@ -34,8 +52,19 @@ const ImgWrap = styled.div`
   img { display: block; width: 100%; max-width: 260px; }
 `;
 
-export function MessageBubble({ mine, text, time, image }: { mine: boolean; text?: string; time: string; image?: string }) {
-  // console.log(mine, text, time)
+export function MessageBubble({
+  mine,
+  text,
+  time,
+  image,
+  isRead,
+}: {
+  mine: boolean;
+  text?: string;
+  time: string;
+  image?: string;
+  isRead?: boolean;
+}) {
   return (
     <Row $mine={mine}>
       <Bubble
@@ -46,7 +75,14 @@ export function MessageBubble({ mine, text, time, image }: { mine: boolean; text
       >
         {image && <ImgWrap><img src={image} alt="" /></ImgWrap>}
         {text && <span>{text}</span>}
-        <Time $mine={mine}>{time}</Time>
+        <Meta $mine={mine}>
+          <Time $mine={mine}>{time}</Time>
+          {mine && (
+            <StatusIcon $mine={mine} $read={Boolean(isRead)}>
+              {isRead ? <CheckCheck size={12} /> : <Check size={12} />}
+            </StatusIcon>
+          )}
+        </Meta>
       </Bubble>
     </Row>
   );

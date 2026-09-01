@@ -114,6 +114,7 @@ export default function ChatInput({
           isRead: false,
           recipientId,
         });
+        scrollToBottom();
         break;
 
       case MessageType.IMAGE:
@@ -200,7 +201,7 @@ export default function ChatInput({
         queryClient.invalidateQueries({
           queryKey: ["messages", newOrOldmessageId],
         });
-        // scrollToBottom();
+        scrollToBottom();
       },
     });
   };

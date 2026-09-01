@@ -3,10 +3,8 @@ import { MessageBubble } from "./MessageBubble";
 import { formatTime } from "#/utils/dates";
 import { AudioBubble } from "./AudioBubble";
 
-
-
 interface MessageRendererProps {
-  message:{
+  message: {
     id: string;
     conversationId: string;
     senderId: string;
@@ -22,16 +20,12 @@ interface MessageRendererProps {
     attachmentUrl: string | null;
     attachmentPublicId: string | null;
     mimeType: string | null;
-  
   };
   mine: boolean;
-};
+}
 
-export const MessageRenderer = ({
-  message,
-  mine,
-}: MessageRendererProps) => {
- 
+export const MessageRenderer = ({ message, mine }: MessageRendererProps) => {
+  // console.log("Rendering message:", message.message, message.isRead);
   switch (message.messageType) {
     case MessageType.TEXT:
       return (
@@ -40,6 +34,7 @@ export const MessageRenderer = ({
           text={message.message ?? ""}
           time={formatTime(message.createdAt)}
           image=""
+          isRead={message.isRead}
         />
       );
 

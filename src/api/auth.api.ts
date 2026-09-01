@@ -13,3 +13,13 @@ export const register = async (payload: RegisterDto) => {
   const res = await api.post(`${ENDPOINTS.REGISTER}`, payload);
   return res.data;
 };
+
+export const forgotPassword = async (email: string) => {
+  const res = await api.post(`${ENDPOINTS.FORGOT_PASSWORD}`, { email });
+  return res.data;
+}
+
+export const resetPassword = async (code: string, password: string) => {
+  const res = await api.post(`${ENDPOINTS.RESET_PASSWORD}`, { code, password });
+  return res.data;
+}
