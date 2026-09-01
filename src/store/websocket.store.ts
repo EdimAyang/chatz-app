@@ -180,6 +180,31 @@ export const useWebSocketStore = create<WebSocketState>((set, get) => ({
           useOnlineUsersStore.getState().setOnlineUsers(payload.users);
           break;
 
+        case SocketEvent.READ_RECEIPT:
+          queryClient.setQueryData<CachedMessages>(
+            ["messages", payload.conversationId],
+            (old) => {
+              if (!old) return old;
+
+              return {
+                ...old,
+                pages: old.pages.map((page) => ({
+                  ...page,
+                  messages: page.messages.map((message) =>
+                    message.id === payload.messageId
+                      ? {
+                          ...message,
+                          isRead: true,
+                          readAt: new Date().toISOString(),
+                        }
+                      : message,
+                  ),
+                })),
+              };
+            },
+          );
+          break;
+
         case SocketEvent.NEW_MESSAGE: {
           const newMessage = {
             id: payload.messageId,
@@ -283,18 +308,21 @@ export const useWebSocketStore = create<WebSocketState>((set, get) => ({
     const socket = get().socket;
 
     if (!socket) {
-      toast.error("WebSocket not connected");
+      console.error("No connection");
       return;
     }
 
     if (socket.readyState !== WebSocket.OPEN) {
-      toast.error("WebSocket is not ready");
+      console.error("WebSocket is not ready");
       return;
     }
 
     socket.send(JSON.stringify(payload));
     queryClient.invalidateQueries({
       queryKey: ["messages", payload.conversationId],
+    });
+    queryClient.invalidateQueries({
+      queryKey: ["conversations"],
     });
   },
 }));

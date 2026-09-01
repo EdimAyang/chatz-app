@@ -17,7 +17,7 @@ export const useLogin = () => {
     },
 
     onError: (error)=>{
-      toast.error(getErrorMessage(error))
+      toast.error(getErrorMessage(error) || error.message || "An error occurred while logging in.");
     }
   });
 };

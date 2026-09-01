@@ -4,6 +4,8 @@ import AppLayout from "@/layouts/appLayouts";
 import HomePage from "@/pages/home";
 import LoginPage from "@/pages/login";
 import RegisterPage from "@/pages/register";
+import ForgotPasswordPage from "@/pages/forgot-password";
+import ResetPasswordPage from "@/pages/reset-password";
 import OnboardingPage from "@/pages/onboarding";
 import ContactsPage from "@/pages/contacts/index";
 // import CallsPage from "@/pages/call";
@@ -35,6 +37,14 @@ export const router = createBrowserRouter([
       {
         path: PATHS.AUTH.REGISTER,
         element: <RegisterPage />,
+      },
+      {
+        path: PATHS.AUTH.FORGOT_PASSWORD,
+        element: <ForgotPasswordPage />,
+      },
+      {
+        path: PATHS.AUTH.RESET_PASSWORD,
+        element: <ResetPasswordPage />,
       },
       {
         path: PATHS.ONBOARDING.ONBOARDING,
