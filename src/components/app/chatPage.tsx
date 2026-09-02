@@ -1,5 +1,6 @@
 import { ArrowLeft, ChevronDown } from "lucide-react";
-import { Fragment, useMemo, useRef } from "react";
+import { Fragment, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import styled, { keyframes } from "styled-components";
 import { Avatar } from "@/components/app/Avatar";
 // import { MobileFrame } from "@/components/app/MobileFrame";
@@ -44,6 +45,16 @@ export default function ChatPage({
   );
 
   const navigate = useNavigate();
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(max-width: 767px)");
+    const updateMobile = () => setIsMobile(mediaQuery.matches);
+
+    updateMobile();
+    mediaQuery.addEventListener("change", updateMobile);
+    return () => mediaQuery.removeEventListener("change", updateMobile);
+  }, []);
 
   useEffect(() => {
     if (createdConversationId) {
@@ -117,6 +128,42 @@ export default function ChatPage({
     }
   }, [ourMessages, isTyping, isAtBottom]);
 
+  const header = userData ? (
+    <Header>
+      <Back onClick={() => window.history.back()} aria-label="Back">
+        <ArrowLeft size={20} />
+      </Back>
+      <Avatar
+        src={userData.data.avatar || ""}
+        size={40}
+        online={userData.data.isOnline}
+      />
+      <Who>
+        <Name>{userData.data.username || ""}</Name>
+        <Status>
+          {userData.data.isOnline
+            ? "online now"
+            : formatTime(userData.data.lastSeen || "")}
+        </Status>
+      </Who>
+    </Header>
+  ) : (
+    <Header>
+      <Back onClick={() => window.history.back()} aria-label="Back">
+        <ArrowLeft size={20} />
+      </Back>
+      <Avatar src={RecipientAvatar} size={40} online={RecipientIsOnline} />
+      <Who>
+        <Name>{RecipientName}</Name>
+        <Status>
+          {RecipientIsOnline
+            ? "online now"
+            : formatTime(RecipientLastSeen || "")}
+        </Status>
+      </Who>
+    </Header>
+  );
+
   return (
     <ChatLayout>
       {isUserLoading || isLoading ? (
@@ -126,57 +173,8 @@ export default function ChatPage({
         </>
       ) : (
         <>
-          {userData ? (
-            <Header>
-              <Back onClick={() => window.history.back()} aria-label="Back">
-                <ArrowLeft size={20} />
-              </Back>
-              <Avatar
-                src={userData?.data.avatar || ""}
-                size={40}
-                online={userData?.data.isOnline}
-              />
-              <Who>
-                <Name>{userData?.data.username || ""}</Name>
-                <Status>
-                  {userData?.data.isOnline
-                    ? "online now"
-                    : formatTime(userData?.data?.lastSeen || "")}
-                </Status>
-              </Who>
-              {/* <HBtn aria-label="Voice call">
-            <Phone size={18} />
-          </HBtn>
-          <HBtn aria-label="Video call">
-            <Video size={18} />
-          </HBtn> */}
-            </Header>
-          ) : (
-            <Header>
-              <Back onClick={() => window.history.back()} aria-label="Back">
-                <ArrowLeft size={20} />
-              </Back>
-              <Avatar
-                src={RecipientAvatar || ""}
-                size={40}
-                online={RecipientIsOnline || false}
-              />
-              <Who>
-                <Name>{RecipientName || ""}</Name>
-                <Status>
-                  {RecipientIsOnline || false
-                    ? "online now"
-                    : formatTime(RecipientLastSeen || "")}
-                </Status>
-              </Who>
-              {/* <HBtn aria-label="Voice call">
-            <Phone size={18} />
-          </HBtn>
-          <HBtn aria-label="Video call">
-            <Video size={18} />
-          </HBtn> */}
-            </Header>
-          )}
+          {isMobile ? createPortal(header, document.body) : header}
+          {isMobile && <HeaderSpace aria-hidden="true" />}
           {ourMessages.length > 0 && (
             <Scroll ref={containerRef} onScroll={() => handleScroll()}>
               {ourMessages.map((m, index) => {
@@ -284,6 +282,18 @@ const Header = styled.header`
   gap: 12px;
   padding: 12px 16px;
   width: 100%;
+
+  @media (max-width: 767px) {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+  }
+`;
+
+const HeaderSpace = styled.div`
+  height: 65px;
+  flex-shrink: 0;
 `;
 const Back = styled.button`
   width: 40px;
@@ -323,6 +333,7 @@ export const Scroll = styled.div`
   overflow-y: auto;
   padding-block: 12px;
   -webkit-overflow-scrolling: touch;
+  padding-inline: 12px;
 `;
 const DateDiv = styled.div`
   text-align: center;
