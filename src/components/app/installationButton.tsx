@@ -3,7 +3,9 @@ import styled from "styled-components";
 import { DownloadCloud, ChevronRight } from "lucide-react";
 
 const InstallButton = () => {
-  const { install } = usePWAInstall();
+  const { canInstall, install } = usePWAInstall();
+
+  if (!canInstall) return null;
 
   return (
     <Item onClick={() => install()}>

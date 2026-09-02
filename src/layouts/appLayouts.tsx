@@ -79,7 +79,7 @@ const MainContent = styled.main`
   @media (max-width: 767px) {
     width: 100%;
     padding-inline: 10px;
-    height: 100%;
+    height: 100dvh;
     min-height: 0;
     overflow: hidden;
   }

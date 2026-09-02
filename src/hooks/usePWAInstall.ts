@@ -17,6 +17,12 @@ const notify = () => {
   listeners.forEach((listener) => listener());
 };
 
+const isStandalone = () =>
+  typeof window !== "undefined" &&
+  (window.matchMedia("(display-mode: standalone)").matches ||
+    (window.navigator as Navigator & { standalone?: boolean }).standalone ===
+      true);
+
 const subscribe = (listener: () => void) => {
   listeners.add(listener);
 
@@ -25,7 +31,7 @@ const subscribe = (listener: () => void) => {
   };
 };
 
-const getSnapshot = () => canInstall;
+const getSnapshot = () => canInstall && !isStandalone();
 
 if (typeof window !== "undefined") {
   window.addEventListener("beforeinstallprompt", (event) => {
@@ -57,11 +63,7 @@ export const usePWAInstall = () => {
 
     await deferredPrompt.prompt();
 
-    const choice = await deferredPrompt.userChoice;
-
-    if (choice.outcome === "accepted") {
-      console.log("App installed");
-    }
+    // const choice = await deferredPrompt.userChoice;
 
     deferredPrompt = null;
     canInstall = false;
