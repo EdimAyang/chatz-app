@@ -80,7 +80,8 @@ const MainContent = styled.main`
     width: 100%;
     padding-inline: 10px;
     height: 100%;
-    overflow: auto;
+    min-height: 0;
+    overflow: hidden;
   }
 `;
 
