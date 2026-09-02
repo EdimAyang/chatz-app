@@ -86,7 +86,7 @@ export default function ChatInput({
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const pickerRef = useRef<HTMLDivElement | null>(null);
   const [messageType] = useState<MessageType>(MessageType.TEXT);
-  const newOrOldmessageId = conversationId ?? recipientId;
+  // const newOrOldmessageId = conversationId ?? recipientId;
 
   const typing = useRef(false);
   const timeout = useRef<ReturnType<typeof setTimeout> | null>(null);
