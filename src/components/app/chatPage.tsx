@@ -260,25 +260,26 @@ const ChatLayout = styled.div`
   overflow: hidden;
 
   @media (max-width: 767px) {
-    height: 100%;
-    max-height: none;
+    height: 100dvh;
+    max-height: 100dvh;
   }
 `;
 
 const Header = styled.header`
-	flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  flex-shrink: 0;
   z-index: 10;
-  background:  ${({ theme }) => theme.colors.background});
+  background: ${({ theme }) =>
+    `color-mix(in srgb, ${theme.colors.background} 78%, transparent)`};
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
   backdrop-filter: saturate(180%) blur(20px);
   border-bottom: 1px solid ${({ theme }) => theme.colors.border};
   display: flex;
   align-items: center;
   gap: 12px;
   padding: 12px 16px;
-  width:100%;
-  position: fixed;
-  left: 0;
-  
+  width: 100%;
 `;
 const Back = styled.button`
   width: 40px;
