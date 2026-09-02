@@ -5,7 +5,7 @@ import { Check, CheckCheck } from "lucide-react";
 const Row = styled.div<{ $mine: boolean }>`
   display: flex;
   justify-content: ${({ $mine }) => ($mine ? "flex-end" : "flex-start")};
-  padding: 2px 16px;
+  padding: 2px 5px;
 `;
 const Bubble = styled(motion.div)<{ $mine: boolean }>`
   max-width: 78%;
@@ -31,18 +31,18 @@ const Time = styled.span<{ $mine: boolean }>`
   display: inline-block;
   font-size: 10.5px;
   opacity: 0.7;
-  color: ${({ $mine }) => ($mine ? "rgba(255,255,255,0.9)" : "#7A7A7A")};
+  color: ${({ $mine, theme }) => ($mine ? "rgba(255,255,255,0.9)" : theme.colors.textSecondary)};
 `;
 const StatusIcon = styled.span<{ $mine: boolean; $read: boolean }>`
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: ${({ $mine, $read }) =>
+  color: ${({ $mine, $read, theme }) =>
     $mine
       ? $read
         ? "rgba(255,255,255,0.95)"
         : "rgba(255,255,255,0.75)"
-      : "#7A7A7A"};
+      : theme.colors.textSecondary};
   opacity: ${({ $read }) => ($read ? 1 : 0.8)};
 `;
 const ImgWrap = styled.div`

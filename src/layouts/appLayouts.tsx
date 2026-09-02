@@ -4,12 +4,14 @@ import Sidebar from "@/components/app/sidebar";
 import { useState } from "react";
 
 const AppLayout = () => {
-   const [sidebarCollapsed, setSidebarCollapsed] =
-    useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   return (
     <Layout>
-      <DesktopSidebar  $collapsed={sidebarCollapsed}>
-        <Sidebar collapsed={sidebarCollapsed} onToggle={()=>setSidebarCollapsed((prev)=>!prev)}/>
+      <DesktopSidebar $collapsed={sidebarCollapsed}>
+        <Sidebar
+          collapsed={sidebarCollapsed}
+          onToggle={() => setSidebarCollapsed((prev) => !prev)}
+        />
       </DesktopSidebar>
 
       <MainContent>
@@ -39,8 +41,7 @@ const Layout = styled.div`
 const DesktopSidebar = styled.aside<{
   $collapsed: boolean;
 }>`
-  width: ${({ $collapsed }) =>
-    $collapsed ? "160px" : "380px"};
+  width: ${({ $collapsed }) => ($collapsed ? "160px" : "380px")};
 
   flex-shrink: 0;
   overflow: hidden;
@@ -48,18 +49,15 @@ const DesktopSidebar = styled.aside<{
   transition: width 0.25s ease;
 
   @media (min-width: 768px) and (max-width: 1023px) {
-    width: ${({ $collapsed }) =>
-      $collapsed ? "160px" : "320px"};
+    width: ${({ $collapsed }) => ($collapsed ? "160px" : "320px")};
   }
 
   @media (min-width: 1024px) and (max-width: 1439px) {
-    width: ${({ $collapsed }) =>
-      $collapsed ? "160px" : "360px"};
+    width: ${({ $collapsed }) => ($collapsed ? "160px" : "360px")};
   }
 
   @media (min-width: 1440px) {
-    width: ${({ $collapsed }) =>
-      $collapsed ? "150px" : "420px"};
+    width: ${({ $collapsed }) => ($collapsed ? "150px" : "420px")};
   }
 
   @media (max-width: 767px) {
@@ -71,12 +69,18 @@ const MainContent = styled.main`
   flex: 1;
   min-width: 0;
   height: 100%;
-  overflow: hidden;
-  padding-inline:10px;
+  overflow: auto;
+  overflow-x: hidden;
+  padding-inline: 10px;
+  display: flex;
+  flex-direction: column;
+  -webkit-overflow-scrolling: touch;
 
   @media (max-width: 767px) {
     width: 100%;
-    padding-inline:10px;
+    padding-inline: 10px;
+    height: 100%;
+    overflow: auto;
   }
 `;
 

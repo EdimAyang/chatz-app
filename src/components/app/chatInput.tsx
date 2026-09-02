@@ -1,22 +1,48 @@
 import type { EmojiClickData } from "emoji-picker-react";
 import { motion } from "framer-motion";
-import { Mic, Send, Smile, XIcon } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import {
+  // BarChart3,
+  // CalendarDays,
+  CameraIcon,
+  FileText,
+  Image as ImageIcon,
+  Mic,
+  Paperclip,
+  // Plus,
+  Send,
+  Smile,
+  // Sparkles,
+  // Video,
+  XIcon,
+} from "lucide-react";
+import { type ChangeEvent, useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import styled from "styled-components";
 import { MessageType, SocketEvent } from "#/lib/constants";
-// import type { ClientMessagePayload } from "#/schema/websocket.schema";
-import { useSendAudio } from "#/hooks/mutations/useSendMessage";
+import {
+  useSendAudio,
+  useSendFile,
+  useSendImage,
+  useSendVideo,
+} from "#/hooks/mutations/useSendMessage";
 import { queryClient } from "#/lib/query-client";
 import { useWebSocketStore } from "#/store/websocket.store";
-// import { useUserProfile } from "@/store/auth.store";
 import { BottomSheet } from "./BottomSheet";
 import { EmojiPickerComponent } from "./EmojiPicker";
 import { Button } from "./Button";
-// import { useChatStore } from "#/store/chat.store";
 
 type MessageForm = {
   message: string;
+};
+
+type MediaKind = "image" | "video" | "file";
+
+type MediaDraft = {
+  kind: MediaKind;
+  file: File;
+  url?: string;
+  name: string;
+  size: number;
 };
 
 type ChatInputProps = {
@@ -47,7 +73,17 @@ export default function ChatInput({
   isAtBottom,
 }: ChatInputProps) {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
+  const [mediaDraft, setMediaDraft] = useState<MediaDraft | null>(null);
+  const [videoUrl, setVideoUrl] = useState<string | null>(null);
+  const [videoBlob, setVideoBlob] = useState<Blob | null>(null);
+  const [isVideoRecording, setIsVideoRecording] = useState(false);
   const emojiButtonRef = useRef<HTMLButtonElement | null>(null);
+  const attachmentButtonRef = useRef<HTMLButtonElement | null>(null);
+  const attachmentMenuRef = useRef<HTMLDivElement | null>(null);
+  const imageInputRef = useRef<HTMLInputElement | null>(null);
+  const videoInputRef = useRef<HTMLInputElement | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const pickerRef = useRef<HTMLDivElement | null>(null);
   const [messageType] = useState<MessageType>(MessageType.TEXT);
   const newOrOldmessageId = conversationId ?? recipientId;
@@ -57,6 +93,9 @@ export default function ChatInput({
 
   //   const { profile } = useUserProfile();
   const sendAudioMutation = useSendAudio();
+  const sendImageMutation = useSendImage();
+  const sendVideoMutation = useSendVideo();
+  const sendFileMutation = useSendFile();
 
   const { send } = useWebSocketStore();
 
@@ -73,8 +112,11 @@ export default function ChatInput({
 
       if (pickerRef.current?.contains(target)) return;
       if (emojiButtonRef.current?.contains(target)) return;
+      if (attachmentMenuRef.current?.contains(target)) return;
+      if (attachmentButtonRef.current?.contains(target)) return;
 
       setShowEmojiPicker(false);
+      setShowAttachmentMenu(false);
     };
 
     document.addEventListener("mousedown", closePicker);
@@ -194,13 +236,157 @@ export default function ChatInput({
       formData.append("duration", String(duration));
     }
 
-    // console.log(formData);
     sendAudioMutation.mutate(formData, {
       onSuccess: () => {
         resetAudio();
-        queryClient.invalidateQueries({
-          queryKey: ["messages", newOrOldmessageId],
-        });
+        scrollToBottom();
+      },
+    });
+  };
+
+  const handleStartVideoRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: true,
+        audio: true,
+      });
+
+      const chunks: Blob[] = [];
+      const recorder = new MediaRecorder(stream);
+
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          chunks.push(event.data);
+        }
+      };
+
+      recorder.onstop = () => {
+        const blob = new Blob(chunks, { type: "video/webm" });
+        const url = URL.createObjectURL(blob);
+
+        setVideoBlob(blob);
+        setVideoUrl(url);
+        stream.getTracks().forEach((track) => track.stop());
+      };
+
+      recorder.start();
+      setIsVideoRecording(true);
+      (window as any).__chatVideoRecorder = recorder;
+    } catch (error: any) {
+      console.error(error);
+      if (error?.message) {
+        alert(error.message);
+      }
+    }
+  };
+
+  const handleStopVideoRecording = () => {
+    const recorder = (window as any).__chatVideoRecorder as
+      | MediaRecorder
+      | undefined;
+    if (!recorder) return;
+
+    recorder.stop();
+    setIsVideoRecording(false);
+  };
+
+  const resetVideoRecording = () => {
+    if (videoUrl) URL.revokeObjectURL(videoUrl);
+    setVideoUrl(null);
+    setVideoBlob(null);
+    setIsVideoRecording(false);
+    delete (window as any).__chatVideoRecorder;
+  };
+
+  const handleSendVideoRecording = () => {
+    if (!videoBlob) return;
+
+    const formData = new FormData();
+    formData.append("video", videoBlob);
+
+    if (conversationId) {
+      formData.append("conversationId", conversationId);
+    }
+
+    if (recipientId) {
+      formData.append("recipientId", recipientId);
+    }
+
+    sendVideoMutation.mutate(formData, {
+      onSuccess: () => {
+        resetVideoRecording();
+        scrollToBottom();
+      },
+    });
+  };
+
+  const handleVideoAction = () => {
+    if (isVideoRecording) {
+      handleStopVideoRecording();
+      return;
+    }
+
+    if (videoUrl) {
+      handleSendVideoRecording();
+      return;
+    }
+
+    handleStartVideoRecording();
+  };
+
+  const clearMediaDraft = () => {
+    if (mediaDraft?.url) {
+      URL.revokeObjectURL(mediaDraft.url);
+    }
+    setMediaDraft(null);
+  };
+
+  const handleMediaSelection = (kind: MediaKind) => {
+    return (event: ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0];
+      if (!file) return;
+
+      const url =
+        file.type.startsWith("image/") || file.type.startsWith("video/")
+          ? URL.createObjectURL(file)
+          : undefined;
+
+      setMediaDraft({
+        kind,
+        file,
+        url,
+        name: file.name || `${kind}.${file.type.split("/")[1] || "bin"}`,
+        size: file.size,
+      });
+
+      event.target.value = "";
+    };
+  };
+
+  const handleSendMedia = () => {
+    if (!mediaDraft) return;
+
+    const formData = new FormData();
+    formData.append(mediaDraft.kind, mediaDraft.file);
+
+    if (conversationId) {
+      formData.append("conversationId", conversationId);
+    }
+
+    if (recipientId) {
+      formData.append("recipientId", recipientId);
+    }
+
+    const mediaMutation =
+      mediaDraft.kind === "image"
+        ? sendImageMutation
+        : mediaDraft.kind === "video"
+          ? sendVideoMutation
+          : sendFileMutation;
+
+    mediaMutation.mutate(formData, {
+      onSuccess: () => {
+        clearMediaDraft();
         scrollToBottom();
       },
     });
@@ -222,49 +408,171 @@ export default function ChatInput({
           />
         )}
 
-        <CBtn ref={emojiButtonRef} type="button" aria-label="Emoji">
-          <Smile
-            size={22}
-            onClick={() => setShowEmojiPicker((prev) => !prev)}
-          />
-        </CBtn>
-        <TextWrap>
-          <TextArea
-            placeholder="Message"
-            rows={1}
-            {...register("message")}
-            onInput={(e) => {
-              const t = e.currentTarget;
-              t.style.height = "auto";
-              t.style.height = `${Math.min(t.scrollHeight, 110)}px`;
-              handleTyping(t.value);
-            }}
-          />
-          {/* <CBtn type="button" aria-label="Attach">
-            <Paperclip size={20} />
-          </CBtn>
-          <CBtn type="button" aria-label="Camera">
-            <Camera size={20} />
-          </CBtn> */}
-        </TextWrap>
-        {message.trim() ? (
-          <SendBtn
-            type="submit"
-            whileTap={{ scale: 0.92 }}
-            aria-label="Send"
-            onClick={() => {
-              if (isAtBottom) {
-                scrollToBottom();
-              }
-            }}
+        <ComposerWrap>
+          <MenuButton
+            ref={attachmentButtonRef}
+            type="button"
+            aria-label="More actions"
+            onClick={() => setShowAttachmentMenu((prev) => !prev)}
           >
-            <Send size={20} />
-          </SendBtn>
-        ) : (
-          <SendBtn type="button" whileTap={{ scale: 0.92 }} aria-label="Record">
-            <Mic size={20} onClick={() => startRecording()} />
-          </SendBtn>
+            <Paperclip size={16} />
+          </MenuButton>
+
+          <TextWrap>
+            <EmojiButton
+              ref={emojiButtonRef}
+              type="button"
+              aria-label="Emoji"
+              onClick={() => setShowEmojiPicker((prev) => !prev)}
+            >
+              <Smile size={18} />
+            </EmojiButton>
+
+            <TextArea
+              placeholder="Message"
+              rows={1}
+              {...register("message")}
+              onInput={(e) => {
+                const t = e.currentTarget;
+                t.style.height = "auto";
+                t.style.height = `${Math.min(t.scrollHeight, 110)}px`;
+                handleTyping(t.value);
+              }}
+            />
+          </TextWrap>
+
+          <RecorderCluster>
+            {message.trim() ? (
+              <SendBtn
+                type="submit"
+                whileTap={{ scale: 0.92 }}
+                aria-label="Send"
+                onClick={() => {
+                  if (isAtBottom) {
+                    scrollToBottom();
+                  }
+                }}
+              >
+                <Send size={18} />
+              </SendBtn>
+            ) : (
+              <>
+                <CircleRecordBtn
+                  type="button"
+                  aria-label="Record video"
+                  $active={isVideoRecording}
+                  onClick={handleVideoAction}
+                >
+                  <CameraIcon size={18} />
+                </CircleRecordBtn>
+
+                <CircleRecordBtn
+                  type="button"
+                  aria-label="Record audio"
+                  $active={isRecording}
+                  onClick={() => startRecording()}
+                >
+                  <Mic size={18} />
+                </CircleRecordBtn>
+              </>
+            )}
+          </RecorderCluster>
+        </ComposerWrap>
+
+        {showAttachmentMenu && (
+          <AttachmentMenu ref={attachmentMenuRef}>
+            <AttachmentItem
+              onClick={() => {
+                setShowAttachmentMenu(false);
+                fileInputRef.current?.click();
+              }}
+            >
+              <AttachmentIcon $tone="#3b82f6">
+                <FileText size={18} />
+              </AttachmentIcon>
+              <span>Document</span>
+            </AttachmentItem>
+            <AttachmentItem
+              onClick={() => {
+                setShowAttachmentMenu(false);
+                imageInputRef.current?.click();
+              }}
+            >
+              <AttachmentIcon $tone="#10b981">
+                <ImageIcon size={18} />
+              </AttachmentIcon>
+              <span>Photos &amp; videos</span>
+            </AttachmentItem>
+            <AttachmentItem
+              onClick={() => {
+                setShowAttachmentMenu(false);
+                videoInputRef.current?.click();
+              }}
+            >
+              <AttachmentIcon $tone="#f59e0b">
+                <CameraIcon size={18} />
+              </AttachmentIcon>
+              <span>Camera</span>
+            </AttachmentItem>
+            <AttachmentItem
+              onClick={() => {
+                setShowAttachmentMenu(false);
+                startRecording();
+              }}
+            >
+              <AttachmentIcon $tone="#ef4444">
+                <Mic size={18} />
+              </AttachmentIcon>
+              <span>Audio</span>
+            </AttachmentItem>
+            {/* <AttachmentItem onClick={() => setShowAttachmentMenu(false)}>
+              <AttachmentIcon $tone="#60a5fa">
+                <Paperclip size={18} />
+              </AttachmentIcon>
+              <span>Contact</span>
+            </AttachmentItem>
+            <AttachmentItem onClick={() => setShowAttachmentMenu(false)}>
+              <AttachmentIcon $tone="#a78bfa">
+                <BarChart3 size={18} />
+              </AttachmentIcon>
+              <span>Poll</span>
+            </AttachmentItem>
+            <AttachmentItem onClick={() => setShowAttachmentMenu(false)}>
+              <AttachmentIcon $tone="#f97316">
+                <CalendarDays size={18} />
+              </AttachmentIcon>
+              <span>Event</span>
+            </AttachmentItem>
+            <AttachmentItem onClick={() => setShowAttachmentMenu(false)}>
+              <AttachmentIcon $tone="#14b8a6">
+                <Sparkles size={18} />
+              </AttachmentIcon>
+              <span>New sticker</span>
+            </AttachmentItem> */}
+          </AttachmentMenu>
         )}
+
+        <input
+          ref={imageInputRef}
+          type="file"
+          accept="image/*"
+          hidden
+          onChange={handleMediaSelection("image")}
+        />
+        <input
+          ref={videoInputRef}
+          type="file"
+          accept="video/*"
+          hidden
+          onChange={handleMediaSelection("video")}
+        />
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="*/*"
+          hidden
+          onChange={handleMediaSelection("file")}
+        />
       </Composer>
 
       <BottomSheet
@@ -283,7 +591,6 @@ export default function ChatInput({
             </Timer>
           </RecHead>
 
-          {/* Show preview after recording */}
           {audioUrl && (
             <audio
               controls
@@ -321,35 +628,138 @@ export default function ChatInput({
           </RecActions>
         </RecBody>
       </BottomSheet>
+
+      <BottomSheet open={!!mediaDraft} onClose={clearMediaDraft}>
+        <RecBody>
+          <RecHead>
+            <RecTitle>
+              {mediaDraft?.kind === "image" && "Send photo"}
+              {mediaDraft?.kind === "video" && "Send video"}
+              {mediaDraft?.kind === "file" && "Send file"}
+            </RecTitle>
+          </RecHead>
+
+          {mediaDraft?.kind === "image" && mediaDraft.url && (
+            <PreviewImage src={mediaDraft.url} alt={mediaDraft.name} />
+          )}
+
+          {mediaDraft?.kind === "video" && mediaDraft.url && (
+            <PreviewVideo controls src={mediaDraft.url} />
+          )}
+
+          {mediaDraft?.kind === "file" && (
+            <FilePreview>
+              <FileText size={24} />
+              <div>
+                <FileName>{mediaDraft.name}</FileName>
+                <FileMeta>
+                  {Math.max(1, Math.ceil(mediaDraft.size / 1024))} KB
+                </FileMeta>
+              </div>
+            </FilePreview>
+          )}
+
+          <RecActions>
+            <CancelBtn onClick={clearMediaDraft}>
+              <XIcon
+                size={16}
+                style={{ marginRight: 6, verticalAlign: "middle" }}
+              />
+              Cancel
+            </CancelBtn>
+
+            <SendRecBtn
+              onClick={() => handleSendMedia()}
+              isLoading={
+                mediaDraft?.kind === "image"
+                  ? sendImageMutation.isPending
+                  : mediaDraft?.kind === "video"
+                    ? sendVideoMutation.isPending
+                    : sendFileMutation.isPending
+              }
+            >
+              <Send size={16} />
+              Send {mediaDraft?.kind === "file" ? "file" : mediaDraft?.kind}
+            </SendRecBtn>
+          </RecActions>
+        </RecBody>
+      </BottomSheet>
     </>
   );
 }
 
 const Composer = styled.form`
   flex-shrink: 0;
-  background: ${({ theme }) => theme.colors.background};
-  backdrop-filter: saturate(180%) blur(20px);
-  border-top: 1px solid ${({ theme }) => theme.colors.border};
-  display: flex;
-  align-items: flex-end;
-  gap: 8px;
-  padding: 10px 5px calc(20px + env(safe-area-inset-bottom));
+  padding: 10px 12px calc(18px + env(safe-area-inset-bottom));
   width: 100%;
+  background: ${({ theme }) => theme.colors.background};
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  position: relative;
 `;
-const CBtn = styled.button`
-  width: 40px;
-  height: 40px;
-  border-radius: 14px;
+
+const ComposerWrap = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-radius: 32px;
+  background: ${({ theme }) => theme.colors.surface};
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  padding: 8px 10px 8px 8px;
+  min-height: 54px;
+`;
+
+const MenuButton = styled.button`
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: ${({ theme }) => theme.colors.textSecondary};
+  background: ${({ theme }) => theme.colors.background};
+  color: ${({ theme }) => theme.colors.textPrimary};
   flex-shrink: 0;
 `;
+
+const EmojiButton = styled.button`
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: ${({ theme }) => theme.colors.textPrimary};
+  background: ${({ theme }) => theme.colors.background};
+  flex-shrink: 0;
+`;
+
+const RecorderCluster = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: 4px;
+`;
+
+const CircleRecordBtn = styled.button<{ $active?: boolean }>`
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: ${({ $active, theme }) =>
+    $active ? "#ff4000" : theme.colors.textPrimary};
+  background: ${({ $active, theme }) =>
+    $active ? "rgba(255, 64, 0, 0.12)" : theme.colors.background};
+  border: 1px solid
+    ${({ $active, theme }) =>
+      $active ? "rgba(255, 64, 0, 0.2)" : theme.colors.border};
+  flex-shrink: 0;
+`;
+
 const SendBtn = styled(motion.button)`
-  width: 44px;
-  height: 44px;
-  border-radius: 16px;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
   background: ${({ theme }) => theme.colors.secondary};
   color: #fff;
   display: inline-flex;
@@ -358,29 +768,69 @@ const SendBtn = styled(motion.button)`
   box-shadow: ${({ theme }) => theme.shadows.orange};
   flex-shrink: 0;
 `;
+
 const TextWrap = styled.div`
   flex: 1;
-  background: ${({ theme }) => theme.colors.border};
-  border-radius: 22px;
-  padding: 6px 12px;
   display: flex;
   align-items: center;
   gap: 6px;
+  min-width: 0;
 `;
+
 const TextArea = styled.textarea`
   flex: 1;
   border: none;
   outline: none;
   background: transparent;
   resize: none;
-  font-size: 16px;
-  padding: 8px 4px;
+  font-size: 15px;
+  padding: 10px 4px;
   max-height: 110px;
-  min-height: 24px;
+  min-height: 20px;
   color: ${({ theme }) => theme.colors.textPrimary};
   &::placeholder {
-    color: ${({ theme }) => theme.colors.textTertiary};
+    color: rgba(255, 255, 255, 0.54);
   }
+`;
+
+const AttachmentMenu = styled.div`
+  position: absolute;
+  left: 8px;
+  bottom: calc(100% + 10px);
+  background: ${({ theme }) => theme.colors.background};
+  border: 1px solid ${({ theme }) => theme.colors.border};
+  border-radius: 18px;
+  box-shadow: ${({ theme }) => theme.shadows.md};
+  width: min(240px, 72vw);
+  padding: 8px;
+`;
+
+const AttachmentItem = styled.button`
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  border-radius: 12px;
+  padding: 10px 12px;
+  text-align: left;
+  font-size: 15px;
+  color: ${({ theme }) => theme.colors.textPrimary};
+  background: transparent;
+  &:hover {
+    background: ${({ theme }) => theme.colors.background};
+  }
+`;
+
+const AttachmentIcon = styled.span<{ $tone: string }>`
+  width: 28px;
+  height: 28px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: ${({ $tone }) => `${$tone}22`};
+  color: ${({ $tone }) => $tone};
+  flex-shrink: 0;
 `;
 
 const RecBody = styled.div`
@@ -405,6 +855,45 @@ const RecActions = styled.div`
   display: flex;
   gap: 12px;
 `;
+
+const PreviewImage = styled.img`
+  width: 100%;
+  max-height: 220px;
+  border-radius: 18px;
+  object-fit: cover;
+`;
+
+const PreviewVideo = styled.video`
+  width: 100%;
+  max-height: 220px;
+  border-radius: 18px;
+  background: ${({ theme }) => theme.colors.background};
+`;
+
+const FilePreview = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 18px;
+  background: ${({ theme }) => theme.colors.background};
+  color: ${({ theme }) => theme.colors.textPrimary};
+`;
+
+const FileName = styled.div`
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 240px;
+`;
+
+const FileMeta = styled.div`
+  font-size: 12px;
+  color: ${({ theme }) => theme.colors.textSecondary};
+  margin-top: 4px;
+`;
+
 const CancelBtn = styled.button`
   flex: 1;
   padding: 14px;

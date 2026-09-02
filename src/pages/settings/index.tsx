@@ -12,7 +12,21 @@ import InstallButton from "#/components/app/installationButton";
 import { BottomNav } from "#/components/app/BottomNav";
 import { MobileNav } from "#/layouts/appLayouts";
 
+const Wrapper = styled.div`
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-bottom: 80px;
+
+  @media (max-width: 767px) {
+    padding-bottom: 80px;
+  }
+`;
+
 const Header = styled.header`
+  flex-shrink: 0;
   padding: 24px 20px 8px;
 `;
 const Title = styled.h1`
@@ -23,6 +37,7 @@ const Title = styled.h1`
 const Profile = styled.div`
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 16px;
   background: ${({ theme }) => theme.colors.surface};
   margin: 16px 20px;
@@ -45,6 +60,7 @@ const Card = styled.div`
   border-radius: 22px;
   overflow: hidden;
   box-shadow: ${({ theme }) => theme.shadows.sm};
+  height: auto;
 `;
 const Item = styled.button`
   width: 100%;
@@ -89,7 +105,7 @@ const Knob = styled(motion.span)`
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 `;
 const LogoutBtn = styled.button`
-  margin: 8px 20px 32px;
+  margin: 8px 20px 2px;
   width: calc(100% - 40px);
   padding: 16px;
   border-radius: 20px;
@@ -100,7 +116,7 @@ const LogoutBtn = styled.button`
   align-items: center;
   justify-content: center;
   gap: 8px;
-  margin-bottom: 7rem;
+  // margin-bottom: 7rem;
 `;
 
 const Settings = () => {
@@ -119,71 +135,72 @@ const Settings = () => {
 
   return (
     <>
-      <Header>
-        <Title>Settings</Title>
-      </Header>
-      <Link
-        to={PATHS.CHAT.PROFILE}
-        style={{ display: "block", color: "inherit", textDecoration: "none" }}
-      >
-        <Profile>
-          <div style={{ position: "relative" }}>
-            <Avatar
-              src={
-                profile?.data.avatar
-                  ? profile.data.avatar
-                  : "https://i.pravatar.cc/150?u=me"
-              }
-              size={64}
-            />
-            <div
-              style={{
-                position: "absolute",
-                right: -2,
-                bottom: -2,
-                background: "#FF4000",
-                color: "#fff",
-                width: 24,
-                height: 24,
-                borderRadius: 999,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                border: "2px solid #fff",
-              }}
-            >
-              <Camera size={12} />
+      <Wrapper>
+        <Header>
+          <Title>Settings</Title>
+        </Header>
+        <Link
+          to={PATHS.CHAT.PROFILE}
+          style={{ display: "block", color: "inherit", textDecoration: "none" }}
+        >
+          <Profile>
+            <div style={{ position: "relative" }}>
+              <Avatar
+                src={
+                  profile?.data.avatar
+                    ? profile.data.avatar
+                    : "https://i.pravatar.cc/150?u=me"
+                }
+                size={64}
+              />
+              <div
+                style={{
+                  position: "absolute",
+                  right: -2,
+                  bottom: -2,
+                  background: "#FF4000",
+                  color: "#fff",
+                  width: 24,
+                  height: 24,
+                  borderRadius: 999,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  border: "2px solid #fff",
+                }}
+              >
+                <Camera size={12} />
+              </div>
             </div>
-          </div>
-          <div style={{ flex: 1 }}>
-            <PName>{profile?.data.username}</PName>
-            <PSub>{profile?.data.email}</PSub>
-          </div>
-          <ChevronRight color="#B5B5B5" />
-        </Profile>
-      </Link>
+            <div style={{ flex: 1 }}>
+              <PName>{profile?.data.username}</PName>
+              <PSub>{profile?.data.email}</PSub>
+            </div>
+            <ChevronRight color="#B5B5B5" />
+          </Profile>
+        </Link>
 
-      <Card>
-        <Item as="div">
-          <IconWrap $bg="#EEF1FF" $c="#5B6CFF">
-            <Moon size={18} />
-          </IconWrap>
-          <Lbl>Dark mode</Lbl>
-          <Toggle
-            $on={dark}
-            onClick={toggle}
-            aria-label="Toggle dark mode"
-            aria-pressed={dark}
-          >
-            <Knob
-              animate={{ left: dark ? 23 : 3 }}
-              transition={{ type: "spring", stiffness: 500, damping: 32 }}
-            />
-          </Toggle>
-        </Item>
-        <Divider />
-        <InstallButton />
-        {/* <Divider />
+        <Card>
+          <Item as="div">
+            <IconWrap $bg="#EEF1FF" $c="#5B6CFF">
+              <Moon size={18} />
+            </IconWrap>
+            <Lbl>Dark mode</Lbl>
+            <Toggle
+              $on={dark}
+              onClick={toggle}
+              aria-label="Toggle dark mode"
+              aria-pressed={dark}
+            >
+              <Knob
+                animate={{ left: dark ? 23 : 3 }}
+                transition={{ type: "spring", stiffness: 500, damping: 32 }}
+              />
+            </Toggle>
+          </Item>
+          <Divider />
+          <InstallButton />
+          {/* <Divider />
         <Item>
           <IconWrap $bg="#E0F7EC" $c="#34C759">
             <Lock size={18} />
@@ -199,9 +216,9 @@ const Settings = () => {
           <Lbl>Security</Lbl>
           <ChevronRight color="#B5B5B5" />
         </Item> */}
-      </Card>
+        </Card>
 
-      {/* <Card>
+        {/* <Card>
         <Item>
           <IconWrap $bg="#F0F0F0" $c="#7A7A7A">
             <DownloadCloud size={18} />
@@ -211,9 +228,10 @@ const Settings = () => {
         </Item>
       </Card> */}
 
-      <LogoutBtn onClick={() => handleLogout()}>
-        <LogOut size={18} /> Log out
-      </LogoutBtn>
+        <LogoutBtn onClick={() => handleLogout()}>
+          <LogOut size={18} /> Log out
+        </LogoutBtn>
+      </Wrapper>
 
       <MobileNav>
         <BottomNav />

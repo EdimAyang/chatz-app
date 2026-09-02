@@ -1,4 +1,4 @@
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import styled from "styled-components";
 import { Mail } from "lucide-react";
 import { MobileFrame } from "@/components/app/MobileFrame";
@@ -53,7 +53,7 @@ const TextLink = styled(Link)`
 `;
 
 const ForgotPassword = () => {
-  const navigate = useNavigate();
+  // const navigate = useNavigate();
   const forgotPasswordMutation = useForgotPassword();
 
   const {
@@ -66,7 +66,7 @@ const ForgotPassword = () => {
 
   const onSubmit = async (data: ForgotPasswordFormData) => {
     await forgotPasswordMutation.mutateAsync(data.email);
-    navigate(PATHS.AUTH.RESET_PASSWORD, { replace: true });
+    // navigate(PATHS.AUTH.RESET_PASSWORD, { replace: true });
   };
 
   return (

@@ -6,7 +6,7 @@ import { SearchBar } from "@/components/app/SearchBar";
 import { Avatar } from "@/components/app/Avatar";
 import { useGetUsersQuery } from "#/hooks/queries/useUsers";
 import { createConversation } from "#/api/conversation.api";
-import { LoadingScreen } from "#/components/app/Loader";
+import { UserListSkeleton } from "#/components/app/Loader";
 // import { Button } from "#/components/app/Button";
 import { BottomNav } from "@/components/app/BottomNav";
 import { MobileNav } from "#/layouts/appLayouts";
@@ -35,7 +35,22 @@ const Contacts = () => {
   }, [q, contacts]);
 
   if (isLoading) {
-    return <LoadingScreen />;
+    return (
+      <>
+        <Header>
+          <Title>Contacts</Title>
+          <SearchBar
+            placeholder="Search contacts"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+          />
+        </Header>
+
+        <Wrapper>
+          <UserListSkeleton />
+        </Wrapper>
+      </>
+    );
   }
 
   const handleContactClick = async (userId: string) => {
@@ -113,8 +128,8 @@ export default Contacts;
 
 const Wrapper = styled.div`
   display: flex;
-  flex: 1;
   flex-direction: column;
+  flex: 1;
   min-height: 0;
   overflow-y: auto;
   padding: 12px;

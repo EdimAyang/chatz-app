@@ -9,14 +9,18 @@ import { Search as SearchIcon } from "lucide-react";
 import { useGetConversationsQuery } from "#/hooks/queries/useConversation";
 import { useDebounce } from "#/hooks/useDebounce";
 import { getConversationBetween } from "#/api/conversation.api";
-import { LoadingScreen } from "#/components/app/Loader";
+import { ConversationListSkeleton } from "#/components/app/Loader";
 import { useAuthStore } from "#/store/auth.store";
 
 const SearchScreen = () => {
   const [query, setQuery] = useState("");
   const { isAuthenticated } = useAuthStore();
   const debounceQuery = useDebounce(query, 1000);
-  const { data, isLoading } = useGetConversationsQuery("50", debounceQuery, isAuthenticated);
+  const { data, isLoading } = useGetConversationsQuery(
+    "50",
+    debounceQuery,
+    isAuthenticated,
+  );
   const navigate = useNavigate();
 
   const conversations = useMemo(() => {
@@ -26,7 +30,27 @@ const SearchScreen = () => {
   }, [data]);
 
   if (isLoading) {
-    return <LoadingScreen />;
+    return (
+      <>
+        <Header>
+          <Back onClick={() => window.history.back()} aria-label="Back">
+            <ArrowLeft size={20} />
+          </Back>
+          <SearchWrap>
+            <SearchBar
+              autoFocus
+              placeholder="Search people, messages, groups"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
+          </SearchWrap>
+        </Header>
+
+        <Wrapper>
+          <ConversationListSkeleton />
+        </Wrapper>
+      </>
+    );
   }
 
   const handleSearchClick = async (userId: string) => {
@@ -68,15 +92,18 @@ const SearchScreen = () => {
           <Section>
             <SectionTitle>PEOPLE</SectionTitle>
             {conversations?.map((p) => (
-              <Row key={p?.id} onClick={() => handleSearchClick(p?.recipient?.id)}>
+              <Row
+                key={p?.id}
+                onClick={() => handleSearchClick(p?.recipient?.id)}
+              >
                 <Avatar
                   src={p?.recipient?.avatarUrl ?? ""}
                   size={48}
                   online={p?.recipient?.isOnline ?? false}
                 />
                 <Meta>
-                  <Name>{p?.recipient?.username ?? ''}</Name>
-                  <Last>{p?.lastMessage?.message ?? ''}</Last>
+                  <Name>{p?.recipient?.username ?? ""}</Name>
+                  <Last>{p?.lastMessage?.message ?? ""}</Last>
                 </Meta>
               </Row>
             ))}
@@ -106,14 +133,12 @@ export default SearchScreen;
 
 const Wrapper = styled.div`
   display: flex;
-  flex: 1;
   flex-direction: column;
   flex: 1;
-  height: 100;
+  min-height: 0;
   overflow-y: auto;
   padding: 12px;
   padding-bottom: 20px;
-  
 `;
 
 const Header = styled.header`
@@ -138,7 +163,6 @@ const SearchWrap = styled.div`
 `;
 const Section = styled.div`
   padding: 8px 0 16px;
-  overflow-y:auto;
   // width:100%;
 `;
 const SectionTitle = styled.h3`
