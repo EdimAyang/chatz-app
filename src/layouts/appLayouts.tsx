@@ -69,7 +69,7 @@ const MainContent = styled.main`
   flex: 1;
   min-width: 0;
   height: 100%;
-  overflow: auto;
+  // overflow: auto;
   overflow-x: hidden;
   padding-inline: 10px;
   display: flex;
