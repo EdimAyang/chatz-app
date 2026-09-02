@@ -5,6 +5,34 @@ import toast from "react-hot-toast";
 import { sendAudio } from "#/api/sendAudio.api";
 import { sendFile, sendImage, sendVideo } from "#/api/sendMedia.api";
 
+const updateMessageCache = (
+  queryClient: ReturnType<typeof useQueryClient>,
+  data: any,
+) => {
+  const conversationId = data.message.conversationId;
+
+  queryClient.setQueryData(["messages", conversationId], (oldData: any) => {
+    if (!oldData) return oldData;
+
+    return {
+      ...oldData,
+      pages: oldData.pages
+        ? [
+            {
+              ...oldData.pages[0],
+              messages: [data.message, ...(oldData.pages[0]?.messages || [])],
+            },
+            ...oldData.pages.slice(1),
+          ]
+        : oldData,
+    };
+  });
+
+  void queryClient.invalidateQueries({
+    queryKey: ["messages", conversationId],
+  });
+};
+
 export const useSendMessage = () => {
   const queryClient = useQueryClient();
 
@@ -13,28 +41,7 @@ export const useSendMessage = () => {
     mutationFn: sendMessage,
 
     onSuccess: (data) => {
-      // Update the messages cache with the newly sent message
-      const conversationId = data.message.conversationId;
-
-      queryClient.setQueryData(["messages", conversationId], (oldData: any) => {
-        if (!oldData) return oldData;
-
-        return {
-          ...oldData,
-          pages: oldData.pages
-            ? [
-                {
-                  ...oldData.pages[0],
-                  messages: [
-                    data.message,
-                    ...(oldData.pages[0]?.messages || []),
-                  ],
-                },
-                ...oldData.pages.slice(1),
-              ]
-            : oldData,
-        };
-      });
+      updateMessageCache(queryClient, data);
     },
     onError: (error) => {
       const errorMessage = getErrorMessage(error);
@@ -50,27 +57,7 @@ export const useSendAudio = () => {
     mutationKey: ["audio"],
     mutationFn: sendAudio,
     onSuccess: (data) => {
-      const conversationId = data.message.conversationId;
-
-      queryClient.setQueryData(["messages", conversationId], (oldData: any) => {
-        if (!oldData) return oldData;
-
-        return {
-          ...oldData,
-          pages: oldData.pages
-            ? [
-                {
-                  ...oldData.pages[0],
-                  messages: [
-                    data.message,
-                    ...(oldData.pages[0]?.messages || []),
-                  ],
-                },
-                ...oldData.pages.slice(1),
-              ]
-            : oldData,
-        };
-      });
+      updateMessageCache(queryClient, data);
     },
     onError: (error) => {
       const errorMessage = getErrorMessage(error);
@@ -86,27 +73,7 @@ export const useSendImage = () => {
     mutationKey: ["image"],
     mutationFn: sendImage,
     onSuccess: (data) => {
-      const conversationId = data.message.conversationId;
-
-      queryClient.setQueryData(["messages", conversationId], (oldData: any) => {
-        if (!oldData) return oldData;
-
-        return {
-          ...oldData,
-          pages: oldData.pages
-            ? [
-                {
-                  ...oldData.pages[0],
-                  messages: [
-                    data.message,
-                    ...(oldData.pages[0]?.messages || []),
-                  ],
-                },
-                ...oldData.pages.slice(1),
-              ]
-            : oldData,
-        };
-      });
+      updateMessageCache(queryClient, data);
     },
     onError: (error) => {
       const errorMessage = getErrorMessage(error);
@@ -122,27 +89,7 @@ export const useSendVideo = () => {
     mutationKey: ["video"],
     mutationFn: sendVideo,
     onSuccess: (data) => {
-      const conversationId = data.message.conversationId;
-
-      queryClient.setQueryData(["messages", conversationId], (oldData: any) => {
-        if (!oldData) return oldData;
-
-        return {
-          ...oldData,
-          pages: oldData.pages
-            ? [
-                {
-                  ...oldData.pages[0],
-                  messages: [
-                    data.message,
-                    ...(oldData.pages[0]?.messages || []),
-                  ],
-                },
-                ...oldData.pages.slice(1),
-              ]
-            : oldData,
-        };
-      });
+      updateMessageCache(queryClient, data);
     },
     onError: (error) => {
       const errorMessage = getErrorMessage(error);
@@ -158,27 +105,7 @@ export const useSendFile = () => {
     mutationKey: ["file"],
     mutationFn: sendFile,
     onSuccess: (data) => {
-      const conversationId = data.message.conversationId;
-
-      queryClient.setQueryData(["messages", conversationId], (oldData: any) => {
-        if (!oldData) return oldData;
-
-        return {
-          ...oldData,
-          pages: oldData.pages
-            ? [
-                {
-                  ...oldData.pages[0],
-                  messages: [
-                    data.message,
-                    ...(oldData.pages[0]?.messages || []),
-                  ],
-                },
-                ...oldData.pages.slice(1),
-              ]
-            : oldData,
-        };
-      });
+      updateMessageCache(queryClient, data);
     },
     onError: (error) => {
       const errorMessage = getErrorMessage(error);

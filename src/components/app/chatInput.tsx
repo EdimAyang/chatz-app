@@ -1,18 +1,14 @@
 import type { EmojiClickData } from "emoji-picker-react";
 import { motion } from "framer-motion";
 import {
-  // BarChart3,
-  // CalendarDays,
   CameraIcon,
   FileText,
   Image as ImageIcon,
   Mic,
   Paperclip,
-  // Plus,
   Send,
   Smile,
-  // Sparkles,
-  // Video,
+  Square,
   XIcon,
 } from "lucide-react";
 import { type ChangeEvent, useEffect, useRef, useState } from "react";
@@ -78,12 +74,16 @@ export default function ChatInput({
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [videoBlob, setVideoBlob] = useState<Blob | null>(null);
   const [isVideoRecording, setIsVideoRecording] = useState(false);
+  const [videoDuration, setVideoDuration] = useState(0);
   const emojiButtonRef = useRef<HTMLButtonElement | null>(null);
   const attachmentButtonRef = useRef<HTMLButtonElement | null>(null);
   const attachmentMenuRef = useRef<HTMLDivElement | null>(null);
   const imageInputRef = useRef<HTMLInputElement | null>(null);
   const videoInputRef = useRef<HTMLInputElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const videoPreviewRef = useRef<HTMLVideoElement | null>(null);
+  const videoStreamRef = useRef<MediaStream | null>(null);
+  const discardVideoRef = useRef(false);
   const pickerRef = useRef<HTMLDivElement | null>(null);
   const [messageType] = useState<MessageType>(MessageType.TEXT);
   // const newOrOldmessageId = conversationId ?? recipientId;
@@ -250,6 +250,7 @@ export default function ChatInput({
         video: true,
         audio: true,
       });
+      videoStreamRef.current = stream;
 
       const chunks: Blob[] = [];
       const recorder = new MediaRecorder(stream);
@@ -261,6 +262,12 @@ export default function ChatInput({
       };
 
       recorder.onstop = () => {
+        if (discardVideoRef.current) {
+          discardVideoRef.current = false;
+          stream.getTracks().forEach((track) => track.stop());
+          return;
+        }
+
         const blob = new Blob(chunks, { type: "video/webm" });
         const url = URL.createObjectURL(blob);
 
@@ -270,6 +277,7 @@ export default function ChatInput({
       };
 
       recorder.start();
+      setVideoDuration(0);
       setIsVideoRecording(true);
       (window as any).__chatVideoRecorder = recorder;
     } catch (error: any) {
@@ -291,12 +299,45 @@ export default function ChatInput({
   };
 
   const resetVideoRecording = () => {
+    const recorder = (window as any).__chatVideoRecorder as
+      | MediaRecorder
+      | undefined;
+    if (recorder && recorder.state !== "inactive") {
+      discardVideoRef.current = true;
+      recorder.stop();
+    }
+    videoStreamRef.current?.getTracks().forEach((track) => track.stop());
+    videoStreamRef.current = null;
     if (videoUrl) URL.revokeObjectURL(videoUrl);
     setVideoUrl(null);
     setVideoBlob(null);
+    setVideoDuration(0);
     setIsVideoRecording(false);
     delete (window as any).__chatVideoRecorder;
   };
+
+  useEffect(() => {
+    if (!isVideoRecording) return;
+
+    const startedAt = Date.now();
+    const timer = window.setInterval(() => {
+      setVideoDuration(Math.floor((Date.now() - startedAt) / 1000));
+    }, 250);
+
+    return () => window.clearInterval(timer);
+  }, [isVideoRecording]);
+
+  useEffect(() => {
+    if (videoPreviewRef.current && videoStreamRef.current) {
+      videoPreviewRef.current.srcObject = videoStreamRef.current;
+    }
+  }, [isVideoRecording]);
+
+  useEffect(() => {
+    return () => {
+      videoStreamRef.current?.getTracks().forEach((track) => track.stop());
+    };
+  }, []);
 
   const handleSendVideoRecording = () => {
     if (!videoBlob) return;
@@ -311,6 +352,7 @@ export default function ChatInput({
     if (recipientId) {
       formData.append("recipientId", recipientId);
     }
+    formData.append("duration", String(videoDuration));
 
     sendVideoMutation.mutate(formData, {
       onSuccess: () => {
@@ -629,6 +671,46 @@ export default function ChatInput({
         </RecBody>
       </BottomSheet>
 
+      {(isVideoRecording || videoUrl) && (
+        <VideoRecorderScreen>
+          <VideoRecorderTopbar>
+            <VideoRecorderTitle>
+              {isVideoRecording ? "Recording video" : "Preview video"}
+            </VideoRecorderTitle>
+            {isVideoRecording && <VideoTimer>{videoDuration}s</VideoTimer>}
+          </VideoRecorderTopbar>
+
+          <VideoPreview
+            ref={videoPreviewRef}
+            src={videoUrl ?? undefined}
+            autoPlay={isVideoRecording}
+            muted={isVideoRecording}
+            controls={!isVideoRecording}
+            playsInline
+          />
+
+          <VideoRecorderActions>
+            <VideoCancelBtn onClick={resetVideoRecording}>
+              Cancel
+            </VideoCancelBtn>
+            {isVideoRecording ? (
+              <StopVideoBtn onClick={handleStopVideoRecording}>
+                <Square size={16} fill="currentColor" />
+                Stop recording
+              </StopVideoBtn>
+            ) : (
+              <SendRecBtn
+                onClick={handleSendVideoRecording}
+                isLoading={sendVideoMutation.isPending}
+              >
+                <Send size={16} />
+                Send video
+              </SendRecBtn>
+            )}
+          </VideoRecorderActions>
+        </VideoRecorderScreen>
+      )}
+
       <BottomSheet open={!!mediaDraft} onClose={clearMediaDraft}>
         <RecBody>
           <RecHead>
@@ -695,6 +777,78 @@ const Composer = styled.form`
   background: ${({ theme }) => theme.colors.background};
   border-top: 1px solid rgba(255, 255, 255, 0.06);
   position: relative;
+`;
+
+const VideoRecorderScreen = styled.div`
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: #080808;
+  color: #fff;
+`;
+
+const VideoRecorderTopbar = styled.div`
+  position: absolute;
+  top: max(18px, env(safe-area-inset-top));
+  left: 18px;
+  right: 18px;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 44px;
+  padding: 0 14px;
+  border-radius: 16px;
+  background: rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+`;
+
+const VideoRecorderTitle = styled.div`
+  font-size: 16px;
+  font-weight: 700;
+`;
+
+const VideoTimer = styled.div`
+  color: #ff4000;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+`;
+
+const VideoPreview = styled.video`
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  background: #141414;
+`;
+
+const VideoRecorderActions = styled.div`
+  position: absolute;
+  left: 18px;
+  right: 18px;
+  bottom: max(18px, env(safe-area-inset-bottom));
+  z-index: 1;
+  display: flex;
+  gap: 12px;
+  padding: 14px;
+  border-radius: 22px;
+  background: rgba(0, 0, 0, 0.32);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+`;
+
+const StopVideoBtn = styled.button`
+  flex: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px;
+  border-radius: 18px;
+  background: #ff4000;
+  color: #fff;
+  font-weight: 700;
 `;
 
 const ComposerWrap = styled.div`
@@ -913,4 +1067,9 @@ const SendRecBtn = styled(Button)`
   align-items: center;
   justify-content: center;
   gap: 8px;
+`;
+
+const VideoCancelBtn = styled(CancelBtn)`
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
 `;

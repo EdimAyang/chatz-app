@@ -3,7 +3,7 @@ import styled from "styled-components";
 
 const GlobalLayout = () => {
   return (
-    <div>
+    <div style={{ height: "100%", overflow: "hidden" }}>
       <Content>
         <Outlet />
       </Content>

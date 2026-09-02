@@ -260,8 +260,12 @@ const ChatLayout = styled.div`
   overflow: hidden;
 
   @media (max-width: 767px) {
+    position: fixed;
+    inset: 0;
+    width: 100%;
     height: 100dvh;
     max-height: 100dvh;
+    z-index: 1;
   }
 `;
 
