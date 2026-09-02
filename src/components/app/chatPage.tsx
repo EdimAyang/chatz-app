@@ -17,7 +17,10 @@ import { useNavigate } from "react-router-dom";
 import { MessageRenderer } from "./messageRenderer";
 import { PATHS } from "#/lib/paths";
 import { SocketEvent } from "#/lib/constants";
-import { queryClient } from "@/lib/query-client";
+import {
+  ChatHeaderSkeleton,
+  MessageListSkeleton,
+} from "#/components/app/Loader";
 
 type ChatPageProps = {
   conversationId?: string;
@@ -31,8 +34,10 @@ export default function ChatPage({
   const { profile } = useUserProfile();
   console.log(conversationId, recipientId, "conversationId, recipientId");
 
-  const { data } = useGetMessageQuery(conversationId ?? "", "100");
-  const { data: userData } = useGetUserQuery(recipientId ?? "");
+  const { data, isLoading } = useGetMessageQuery(conversationId ?? "", "100");
+  const { data: userData, isLoading: isUserLoading } = useGetUserQuery(
+    recipientId ?? "",
+  );
 
   const createdConversationId = useWebSocketStore(
     (state) => state.createdConversationId,
@@ -114,107 +119,116 @@ export default function ChatPage({
 
   return (
     <ChatLayout>
-      {userData ? (
-        <Header>
-          <Back onClick={() => window.history.back()} aria-label="Back">
-            <ArrowLeft size={20} />
-          </Back>
-          <Avatar
-            src={userData?.data.avatar || ""}
-            size={40}
-            online={userData?.data.isOnline}
-          />
-          <Who>
-            <Name>{userData?.data.username || ""}</Name>
-            <Status>
-              {userData?.data.isOnline
-                ? "online now"
-                : formatTime(userData?.data?.lastSeen || "")}
-            </Status>
-          </Who>
-          {/* <HBtn aria-label="Voice call">
-            <Phone size={18} />
-          </HBtn>
-          <HBtn aria-label="Video call">
-            <Video size={18} />
-          </HBtn> */}
-        </Header>
+      {isUserLoading || isLoading ? (
+        <>
+          <ChatHeaderSkeleton />
+          <MessageListSkeleton />
+        </>
       ) : (
-        <Header>
-          <Back onClick={() => window.history.back()} aria-label="Back">
-            <ArrowLeft size={20} />
-          </Back>
-          <Avatar
-            src={RecipientAvatar || ""}
-            size={40}
-            online={RecipientIsOnline || false}
-          />
-          <Who>
-            <Name>{RecipientName || ""}</Name>
-            <Status>
-              {RecipientIsOnline || false
-                ? "online now"
-                : formatTime(RecipientLastSeen || "")}
-            </Status>
-          </Who>
-          {/* <HBtn aria-label="Voice call">
+        <>
+          {userData ? (
+            <Header>
+              <Back onClick={() => window.history.back()} aria-label="Back">
+                <ArrowLeft size={20} />
+              </Back>
+              <Avatar
+                src={userData?.data.avatar || ""}
+                size={40}
+                online={userData?.data.isOnline}
+              />
+              <Who>
+                <Name>{userData?.data.username || ""}</Name>
+                <Status>
+                  {userData?.data.isOnline
+                    ? "online now"
+                    : formatTime(userData?.data?.lastSeen || "")}
+                </Status>
+              </Who>
+              {/* <HBtn aria-label="Voice call">
             <Phone size={18} />
           </HBtn>
           <HBtn aria-label="Video call">
             <Video size={18} />
           </HBtn> */}
-        </Header>
-      )}
-      {ourMessages.length > 0 && (
-        <Scroll ref={containerRef} onScroll={() => handleScroll()}>
-          {ourMessages.map((m, index) => {
-            const previous = ourMessages[index - 1];
-
-            const showDate =
-              !previous ||
-              formatMessageDate(previous.createdAt) !==
-                formatMessageDate(m.createdAt);
-
-            return (
-              <Fragment key={m.id}>
-                {showDate && (
-                  <DateDiv>
-                    <DateChip>{formatMessageDate(m.createdAt)}</DateChip>
-                  </DateDiv>
-                )}
-
-                <MessageRenderer
-                  message={m}
-                  mine={m.senderId === profile?.data.id}
-                />
-              </Fragment>
-            );
-          })}
-
-          {isTyping && (
-            <TypingRow>
-              <TypingBubble>
-                <TDot $i={0} />
-                <TDot $i={1} />
-                <TDot $i={2} />
-              </TypingBubble>
-            </TypingRow>
+            </Header>
+          ) : (
+            <Header>
+              <Back onClick={() => window.history.back()} aria-label="Back">
+                <ArrowLeft size={20} />
+              </Back>
+              <Avatar
+                src={RecipientAvatar || ""}
+                size={40}
+                online={RecipientIsOnline || false}
+              />
+              <Who>
+                <Name>{RecipientName || ""}</Name>
+                <Status>
+                  {RecipientIsOnline || false
+                    ? "online now"
+                    : formatTime(RecipientLastSeen || "")}
+                </Status>
+              </Who>
+              {/* <HBtn aria-label="Voice call">
+            <Phone size={18} />
+          </HBtn>
+          <HBtn aria-label="Video call">
+            <Video size={18} />
+          </HBtn> */}
+            </Header>
           )}
+          {ourMessages.length > 0 && (
+            <Scroll ref={containerRef} onScroll={() => handleScroll()}>
+              {ourMessages.map((m, index) => {
+                const previous = ourMessages[index - 1];
 
-          {!isAtBottom && (
-            <AnimatePresence>
-              <UnreadBtn
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 10 }}
-                onClick={() => scrollToBottom()}
-              >
-                <ChevronDown size={14} />
-              </UnreadBtn>
-            </AnimatePresence>
+                const showDate =
+                  !previous ||
+                  formatMessageDate(previous.createdAt) !==
+                    formatMessageDate(m.createdAt);
+
+                return (
+                  <Fragment key={m.id}>
+                    {showDate && (
+                      <DateDiv>
+                        <DateChip>{formatMessageDate(m.createdAt)}</DateChip>
+                      </DateDiv>
+                    )}
+
+                    <MessageRenderer
+                      message={m}
+                      mine={m.senderId === profile?.data.id}
+                    />
+                  </Fragment>
+                );
+              })}
+
+              {isTyping && (
+                <TypingRow>
+                  <TypingBubble>
+                    <TDot $i={0} />
+                    <TDot $i={1} />
+                    <TDot $i={2} />
+                  </TypingBubble>
+                </TypingRow>
+              )}
+
+              {!isAtBottom && (
+                <AnimatePresence>
+                  <UnreadBtn
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 10 }}
+                    onClick={() => scrollToBottom()}
+                  >
+                    <ChevronDown size={14} />
+                  </UnreadBtn>
+                </AnimatePresence>
+              )}
+              <div ref={bottomRef}></div>
+            </Scroll>
           )}
-          <div ref={bottomRef}></div>
-        </Scroll>
+        </>
       )}
 
       <ChatInput
@@ -237,9 +251,16 @@ export default function ChatPage({
 //styles
 
 const ChatLayout = styled.div`
-  height: 100dvh;
+  height: 100%;
   display: flex;
   flex-direction: column;
+  max-height: 100dvh;
+  overflow: hidden;
+
+  @media (max-width: 767px) {
+    height: 100%;
+    max-height: none;
+  }
 `;
 
 const Header = styled.header`
@@ -290,7 +311,8 @@ export const Scroll = styled.div`
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding: 12px;
+  padding-block: 12px;
+  -webkit-overflow-scrolling: touch;
 `;
 const DateDiv = styled.div`
   text-align: center;
@@ -333,10 +355,10 @@ const TDot = styled.span<{ $i: number }>`
 const UnreadBtn = styled(motion.button)`
   position: fixed;
   right: 10px;
-  bottom: 10%;
+  bottom: 20%;
   transform: translateX(-50%);
   background: ${({ theme }) => theme.colors.secondary};
-  color: #fff;
+  color: "ffff";
   padding: 8px 14px;
   border-radius: 999px;
   font-size: 13px;
@@ -344,6 +366,6 @@ const UnreadBtn = styled(motion.button)`
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  box-shadow: ${({ theme }) => theme.shadows.orange};
+  box-shadow: ${({ theme }) => theme.shadows.lg};
   z-index: 8;
 `;

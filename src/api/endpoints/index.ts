@@ -29,4 +29,7 @@ export const ENDPOINTS = {
 
   //media
   SEND_AUDIO: "messages/audio",
+  SEND_IMAGE: "messages/image",
+  SEND_VIDEO: "messages/video",
+  SEND_FILE: "messages/file",
 } as const;

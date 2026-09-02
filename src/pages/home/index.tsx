@@ -11,7 +11,7 @@ import { useGetConversationsQuery } from "@/hooks/queries/useConversation";
 import { EmptyState } from "@/components/app/EmptyState";
 import { EmptyBoxIcon } from "@/components/icons/emptyBox";
 import { useWebSocketStore } from "#/store/websocket.store";
-import { LoadingScreen } from "#/components/app/Loader";
+import { ConversationListSkeleton } from "#/components/app/Loader";
 import { PATHS } from "#/lib/paths";
 import { BottomNav } from "@/components/app/BottomNav";
 import { MobileNav } from "#/layouts/appLayouts";
@@ -35,7 +35,38 @@ const Home = () => {
   }, [data]);
 
   if (isLoading) {
-    return <LoadingScreen />;
+    return (
+      <>
+        <Head>
+          <Header>
+            <Avatar
+              src={
+                profile?.data?.avatar
+                  ? profile.data.avatar
+                  : "https://i.pravatar.cc/150?u=me"
+              }
+              size={48}
+              online={isConnected}
+            />
+
+            <Hi>
+              <Hello>{getGreeting(new Date())}!</Hello>
+              <Name>{profile?.data?.username}</Name>
+            </Hi>
+
+            <IconBtn to={PATHS.SEARCH.SEARCH} aria-label="Search">
+              <Search size={20} />
+            </IconBtn>
+          </Header>
+        </Head>
+        <ChatWrapper>
+          <ChatsHeader>
+            <ChatsTitle>Chats</ChatsTitle>
+          </ChatsHeader>
+          <ConversationListSkeleton />
+        </ChatWrapper>
+      </>
+    );
   }
 
   // if (!data) {
@@ -126,6 +157,7 @@ const ChatWrapper = styled.div`
   flex-direction: column;
   width: 100%;
   flex: 1;
+  min-height: 0;
   overflow: auto;
   position: relative;
 

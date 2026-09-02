@@ -15,7 +15,7 @@ import { PATHS } from "@/lib/paths";
 import { EmptyState } from "./EmptyState";
 import { useMemo, useState } from "react";
 import { useGetConversationsQuery } from "#/hooks/queries/useConversation";
-import { LoadingScreen } from "./Loader";
+import { ConversationListSkeleton } from "./Loader";
 import { EmptyBoxIcon } from "../icons/emptyBox";
 import { Avatar } from "./Avatar";
 import { formatTime } from "#/utils/dates";
@@ -39,7 +39,11 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
 
   const [query, setQuery] = useState("");
   const debounceQuery = useDebounce(query, 1000);
-  const { data, isLoading } = useGetConversationsQuery("50", debounceQuery, isAuthenticated);
+  const { data, isLoading } = useGetConversationsQuery(
+    "50",
+    debounceQuery,
+    isAuthenticated,
+  );
   const { profile } = useUserProfile();
   const { isConnected } = useWebSocketStore();
 
@@ -164,14 +168,14 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
 
         {/* CONVERSATIONS */}
         <ConversationSection $collapsed={collapsed}>
-          {isLoading && <LoadingScreen />}
-       
+          {isLoading && <ConversationListSkeleton />}
+
           {!collapsed && <SectionTitle>Chats</SectionTitle>}
           {!conversations && (
             <EmptyState
               title="conversation"
               description="no conversation found"
-               icon={<EmptyBoxIcon size={24} />}
+              icon={<EmptyBoxIcon size={24} />}
             />
           )}
 

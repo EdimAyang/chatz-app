@@ -10,8 +10,8 @@ export const useResetPassword = () => {
             toast.success(data.message); // Display success message
         },
         onError: (error) => {
-            toast.error("An error occurred while resetting the password."); // Display error message
-            console.error("Reset password error:", error);
+            toast.error(error.message); // Display error message
+            console.error("Reset password error:", error.stack);
         }
     });
 };

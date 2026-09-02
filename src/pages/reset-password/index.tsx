@@ -1,6 +1,6 @@
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import styled from "styled-components";
-import { KeyRound, Lock } from "lucide-react";
+import { Lock } from "lucide-react";
 import { MobileFrame } from "@/components/app/MobileFrame";
 import { Button } from "@/components/app/Button";
 import { Input } from "@/components/app/Input";
@@ -77,7 +77,7 @@ const ResetPassword = () => {
   return (
     <MobileFrame>
       <Wrap>
-        <H1>Reset password 🔒</H1>
+        <H1>Reset password</H1>
         <Sub>Enter the code you received and choose a new password.</Sub>
 
         <Form onSubmit={handleSubmit(onSubmit)}>
