@@ -276,6 +276,9 @@ const Header = styled.header`
   gap: 12px;
   padding: 12px 16px;
   width:100%;
+  position: fixed;
+  left: 0;
+  
 `;
 const Back = styled.button`
   width: 40px;
