@@ -19,6 +19,7 @@ import DesktopEmptyChat from "#/components/app/EmptyChat";
 // import { EmptyState } from "@/components/app/EmptyState";
 // import toast from "react-hot-toast";
 import { useMediaQuery } from "#/hooks/useMediaQuery";
+import { api } from "#/api/axios";
 
 const Home = () => {
   // const [toast, setToast] = useState(false);
@@ -27,6 +28,18 @@ const Home = () => {
   const isDesktop = useMediaQuery("(min-width: 768px)");
 
   const { data, isLoading } = useGetConversationsQuery("50");
+
+  const handleTestNotification = async () => {
+  try {
+    const { data } = await api.get(
+      PATHS.PUSH_NOTIFICATIONS.TEST,
+    );
+
+    console.log(data);
+  } catch (error) {
+    console.error(error);
+  }
+};
 
   const conversations = useMemo(() => {
     const result = data?.pages.flatMap((page) => page.data);
@@ -136,7 +149,7 @@ const Home = () => {
           )}
 
           <MobileNav>
-            <Fab whileTap={{ scale: 0.92 }} aria-label="New message">
+            <Fab whileTap={{ scale: 0.92 }} aria-label="New message"  onClick={()=>handleTestNotification()}>
               <Link to={PATHS.CONTACTS.CONTACTlIST}>
                 <Plus size={22} />
               </Link>

@@ -7,7 +7,7 @@ export const sendImage = async (payload: FormData) => {
 };
 
 export const sendFile = async (payload: FormData) => {
-  const res = await api.post<any>(ENDPOINTS.SEND_FILE, payload);
+  const res = await api.post<any>(ENDPOINTS.SEND_DOCUMENT, payload);
   return res.data;
 };
 

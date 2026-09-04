@@ -19,6 +19,8 @@ const Bubble = styled(motion.div)<{ $mine: boolean }>`
   color: ${({ $mine, theme }) => ($mine ? "#fff" : theme.colors.textPrimary)};
   box-shadow: ${({ theme }) => theme.shadows.sm};
   min-width: 200px;
+  border-bottom-right-radius: ${({ $mine }) => ($mine ? "8px" : "22px")};
+  border-bottom-left-radius: ${({ $mine }) => ($mine ? "22px" : "8px")};
 `;
 const PlayBtn = styled.button<{ $mine: boolean }>`
   width: 36px;

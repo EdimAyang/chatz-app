@@ -419,6 +419,8 @@ export default function ChatInput({
       formData.append("recipientId", recipientId);
     }
 
+    console.log(mediaDraft.kind, mediaDraft.file);
+
     const mediaMutation =
       mediaDraft.kind === "image"
         ? sendImageMutation

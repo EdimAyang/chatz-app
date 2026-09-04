@@ -42,4 +42,11 @@ export const PATHS = {
   SETTINGS: {
     SETTING: "/settings",
   },
+
+
+  //PUSH NOTIFICATIONS
+  PUSH_NOTIFICATIONS: {
+    NOTIFICATIONS: "/notifications/token",
+    TEST:"/notifications/test"
+  },
 } as const;
