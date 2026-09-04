@@ -34,6 +34,10 @@ export async function registerForPushNotifications() {
     serviceWorkerRegistration: serviceWorkerRegistration ?? undefined,
   });
 
+  console.log("📱 FCM TOKEN:", token);
+
+  alert(`FCM Token:\n${token}`);
+
   if (!token) {
     console.log("No FCM token available");
 
