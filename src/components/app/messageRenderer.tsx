@@ -115,13 +115,15 @@ export const MessageRenderer = ({ message, mine }: MessageRendererProps) => {
 const Row = styled.div<{ $mine: boolean }>`
   display: flex;
   justify-content: ${({ $mine }) => ($mine ? "flex-end" : "flex-start")};
-  padding: 2px 16px;
+  padding: 2px 5px;
 `;
 
 const ImageBubble = styled(motion.div)<{ $mine: boolean }>`
   max-width: min(78%, 280px);
   overflow: hidden;
   border-radius: 22px;
+  border-bottom-right-radius: ${({ $mine }) => ($mine ? "8px" : "22px")};
+  border-bottom-left-radius: ${({ $mine }) => ($mine ? "22px" : "8px")};
   background: ${({ $mine, theme }) =>
     $mine ? theme.colors.bubbleOutgoing : theme.colors.bubbleIncoming};
   box-shadow: ${({ theme }) => theme.shadows.sm};
@@ -137,6 +139,8 @@ const PreviewImage = styled.img`
 const VideoBubble = styled(motion.div)<{ $mine: boolean }>`
   max-width: min(78%, 320px);
   border-radius: 22px;
+  border-bottom-right-radius: ${({ $mine }) => ($mine ? "8px" : "22px")};
+  border-bottom-left-radius: ${({ $mine }) => ($mine ? "22px" : "8px")};
   overflow: hidden;
   background: ${({ $mine, theme }) =>
     $mine ? theme.colors.bubbleOutgoing : theme.colors.bubbleIncoming};
@@ -157,6 +161,8 @@ const FileBubble = styled.a<{ $mine: boolean }>`
   width: min(78%, 300px);
   padding: 12px 14px;
   border-radius: 22px;
+  border-bottom-right-radius: ${({ $mine }) => ($mine ? "8px" : "22px")};
+  border-bottom-left-radius: ${({ $mine }) => ($mine ? "22px" : "8px")};
   background: ${({ $mine, theme }) =>
     $mine ? theme.colors.bubbleOutgoing : theme.colors.bubbleIncoming};
   color: ${({ $mine, theme }) => ($mine ? "#fff" : theme.colors.textPrimary)};

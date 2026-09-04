@@ -7,16 +7,33 @@ import { useWebSocketStore } from "@/store/websocket.store";
 import { useEffect } from "react";
 import toast from "react-hot-toast";
 import { useWebSocket } from "#/hooks/useWebsocket";
+import { registerForPushNotifications } from "@/firebase/getDeviceToken";
 
 const ProtectedRoute = () => {
   const { isAuthenticated, hydrated, user, token } = useAuthStore();
+
+  const handleRegisterFirebaseMessagingSW = async () => {
+    try {
+      await registerForPushNotifications();
+    } catch (error) {
+      console.error("Error registering Firebase Messaging SW:", error);
+    }
+  };
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      handleRegisterFirebaseMessagingSW();
+      
+    }
+  }, [isAuthenticated]);
+
 
   const { setProfile } = useUserProfile();
   const { connect } = useWebSocketStore();
 
   const { data, error } = useProfileQuery(user?.id || "");
 
-	useWebSocket(token);
+  useWebSocket(token);
 
   useEffect(() => {
     if (error) {
