@@ -6,38 +6,60 @@ importScripts(
   "https://www.gstatic.com/firebasejs/12.0.0/firebase-messaging-compat.js",
 );
 
-console.log("firebase-messaging-sw.js loaded");
-
-
 firebase.initializeApp({
-  apiKey:"AIzaSyBXyg2kLAfyWezheM7b27OzjRvZiYzrcRg",
+  apiKey: "AIzaSyBXyg2kLAfyWezheM7b27OzjRvZiYzrcRg",
   authDomain: "chatz-29664.firebaseapp.com",
   projectId: "chatz-29664",
   storageBucket: "chatz-29664.firebasestorage.app",
   messagingSenderId: "62212306014",
-  appId: "1:62212306014:web:470662fc9d0dc24b2cf0cf"
+  appId: "1:62212306014:web:470662fc9d0dc24b2cf0cf",
 });
-
-console.log("Firebase initialized in service worker");
-
 
 const messaging = firebase.messaging();
 
-console.log("Firebase Messaging instance created in service worker");
-
 messaging.onBackgroundMessage((payload) => {
-  console.log("[firebase-messaging-sw.js] Background message", payload);
-
-  const notification = payload.notification;
+  const notification = payload.data;
 
   if (!notification) return;
 
-  console.log("Displaying notification:", notification.title, notification.body);
+  // console.log("Displaying notification:", notification.title, notification.body);
 
-  self.registration.showNotification(notification.title, {
-    body: notification.body,
-    icon: notification.icon || "/android-chrome-192x192.png",
-    badge: notification.badge || "/favicon-16x16.png",
-    data: payload.data,
+  const data = payload.data;
+
+  if (!data) return;
+
+  self.registration.showNotification(data.title || "New Message", {
+    body: data.body || "",
+    icon: "/android-chrome-192x192.png",
+    badge: "/favicon-16x16.png",
+    data: data,
+  });
+
+  self.addEventListener("notificationclick", (event) => {
+    event.notification.close();
+
+    const data = event.notification.data;
+
+    const url = data?.url || "/";
+
+    event.waitUntil(
+      clients
+        .matchAll({
+          type: "window",
+          includeUncontrolled: true,
+        })
+        .then((clientList) => {
+          // If Chatz is already open, focus it and navigate
+          for (const client of clientList) {
+            if ("focus" in client) {
+              client.navigate(url);
+              return client.focus();
+            }
+          }
+
+          // Otherwise open Chatz
+          return clients.openWindow(url);
+        }),
+    );
   });
 });
