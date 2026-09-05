@@ -1,8 +1,7 @@
 import { useEffect } from "react";
 import { useWebSocketStore } from "@/store/websocket.store";
+import { useOnlineUsersStore } from "@/store/onlineUser.store";
 // import toast from "react-hot-toast";
-
-
 
 export function useWebSocket(token: string | null) {
   const connect = useWebSocketStore((state) => state.connect);
@@ -27,10 +26,16 @@ export function useWebSocket(token: string | null) {
       }
     };
 
+    const handleOffline = () => {
+      useOnlineUsersStore.getState().clearOnlineUsers();
+    };
+
     window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
 
     return () => {
       window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
     };
   }, []);
 

@@ -191,6 +191,7 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
                     alt={item.recipient.username}
                     size={54}
                     online={item.recipient.isOnline}
+                    userId={item.recipient.id}
                   />
                 ) : (
                   <Initials>

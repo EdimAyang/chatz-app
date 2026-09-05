@@ -100,6 +100,7 @@ const SearchScreen = () => {
                   src={p?.recipient?.avatarUrl ?? ""}
                   size={48}
                   online={p?.recipient?.isOnline ?? false}
+                  userId={p?.recipient?.id}
                 />
                 <Meta>
                   <Name>{p?.recipient?.username ?? ""}</Name>

@@ -6,9 +6,11 @@ import {
   Image as ImageIcon,
   Mic,
   Paperclip,
+  RefreshCw,
   Send,
   Smile,
   Square,
+  Video,
   XIcon,
 } from "lucide-react";
 import { type ChangeEvent, useEffect, useRef, useState } from "react";
@@ -98,6 +100,11 @@ export default function ChatInput({
   const sendFileMutation = useSendFile();
 
   const { send } = useWebSocketStore();
+
+  const refreshChatData = () => {
+    void queryClient.invalidateQueries({ queryKey: ["messages"] });
+    void queryClient.invalidateQueries({ queryKey: ["conversations"] });
+  };
 
   const { register, handleSubmit, reset, setValue, watch } =
     useForm<MessageForm>({
@@ -503,11 +510,10 @@ export default function ChatInput({
               <>
                 <CircleRecordBtn
                   type="button"
-                  aria-label="Record video"
-                  $active={isVideoRecording}
-                  onClick={handleVideoAction}
+                  aria-label="Refresh messages and conversations"
+                  onClick={refreshChatData}
                 >
-                  <CameraIcon size={18} />
+                  <RefreshCw size={17} />
                 </CircleRecordBtn>
 
                 <CircleRecordBtn
@@ -545,7 +551,7 @@ export default function ChatInput({
               <AttachmentIcon $tone="#10b981">
                 <ImageIcon size={18} />
               </AttachmentIcon>
-              <span>Photos &amp; videos</span>
+              <span>Photos</span>
             </AttachmentItem>
             <AttachmentItem
               onClick={() => {
@@ -554,9 +560,20 @@ export default function ChatInput({
               }}
             >
               <AttachmentIcon $tone="#f59e0b">
+                <Video size={18} />
+              </AttachmentIcon>
+              <span>Send video</span>
+            </AttachmentItem>
+            <AttachmentItem
+              onClick={() => {
+                setShowAttachmentMenu(false);
+                handleVideoAction();
+              }}
+            >
+              <AttachmentIcon $tone="#f59e0b">
                 <CameraIcon size={18} />
               </AttachmentIcon>
-              <span>Camera</span>
+              <span>Record video</span>
             </AttachmentItem>
             <AttachmentItem
               onClick={() => {
