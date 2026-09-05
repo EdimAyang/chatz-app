@@ -18,21 +18,21 @@ firebase.initializeApp({
 const messaging = firebase.messaging();
 
 messaging.onBackgroundMessage((payload) => {
-  const notification = payload.data;
+  const notification = payload.notification;
 
   if (!notification) return;
 
-  // console.log("Displaying notification:", notification.title, notification.body);
+  console.log(
+    "Displaying notification:",
+    notification.title,
+    notification.body,
+  );
 
-  const data = payload.data;
-
-  if (!data) return;
-
-  self.registration.showNotification(data.title || "New Message", {
-    body: data.body || "",
-    icon: "/android-chrome-192x192.png",
-    badge: "/favicon-16x16.png",
-    data: data,
+  self.registration.showNotification(notification.title, {
+    body: notification.body,
+    icon: notification.icon || "/favicon.svg",
+    badge: notification.badge || "/favicon-16x16.png",
+    data: payload.data,
   });
 
   self.addEventListener("notificationclick", (event) => {
