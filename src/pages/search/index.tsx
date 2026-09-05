@@ -9,18 +9,25 @@ import { Search as SearchIcon } from "lucide-react";
 import { useGetConversationsQuery } from "#/hooks/queries/useConversation";
 import { useDebounce } from "#/hooks/useDebounce";
 import { getConversationBetween } from "#/api/conversation.api";
-import { ConversationListSkeleton } from "#/components/app/Loader";
+import { ConversationListSkeleton, LoadingOlder } from "#/components/app/Loader";
 import { useAuthStore } from "#/store/auth.store";
+import { useInfiniteScroll } from "#/hooks/useInfiniteScroll";
 
 const SearchScreen = () => {
   const [query, setQuery] = useState("");
   const { isAuthenticated } = useAuthStore();
   const debounceQuery = useDebounce(query, 1000);
-  const { data, isLoading } = useGetConversationsQuery(
-    "50",
-    debounceQuery,
-    isAuthenticated,
-  );
+  
+  const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } =
+    useGetConversationsQuery("20", debounceQuery, isAuthenticated);
+
+  const handleScroll = useInfiniteScroll({
+    direction: "bottom",
+    threshold: 120,
+    hasNextPage,
+    isFetchingNextPage,
+    fetchNextPage,
+  });
   const navigate = useNavigate();
 
   const conversations = useMemo(() => {
@@ -79,7 +86,7 @@ const SearchScreen = () => {
         </SearchWrap>
       </Header>
 
-      <Wrapper>
+      <Wrapper onScroll={handleScroll}>
         {conversations?.length! <= 0 && (
           <EmptyState
             icon={<SearchIcon size={32} />}
@@ -110,6 +117,7 @@ const SearchScreen = () => {
             ))}
           </Section>
         )}
+        {isFetchingNextPage && <LoadingOlder />}
       </Wrapper>
 
       {/* {groups.length > 0 && (

@@ -15,7 +15,7 @@ import { PATHS } from "@/lib/paths";
 import { EmptyState } from "./EmptyState";
 import { useMemo, useState } from "react";
 import { useGetConversationsQuery } from "#/hooks/queries/useConversation";
-import { ConversationListSkeleton } from "./Loader";
+import { ConversationListSkeleton, LoadingOlder } from "./Loader";
 import { EmptyBoxIcon } from "../icons/emptyBox";
 import { Avatar } from "./Avatar";
 import { formatTime } from "#/utils/dates";
@@ -24,6 +24,7 @@ import { useAuthStore, useUserProfile } from "#/store/auth.store";
 import { useWebSocketStore } from "#/store/websocket.store";
 import { useDebounce } from "#/hooks/useDebounce";
 import { getConversationBetween } from "#/api/conversation.api";
+import { useInfiniteScroll } from "#/hooks/useInfiniteScroll";
 
 interface SidebarProps {
   collapsed: boolean;
@@ -39,14 +40,20 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
 
   const [query, setQuery] = useState("");
   const debounceQuery = useDebounce(query, 1000);
-  const { data, isLoading } = useGetConversationsQuery(
-    "50",
-    debounceQuery,
-    isAuthenticated,
-  );
+  const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } =
+    useGetConversationsQuery("20", debounceQuery, isAuthenticated);
+
+  const handleScroll = useInfiniteScroll({
+    direction: "bottom",
+    threshold: 120,
+    hasNextPage,
+    isFetchingNextPage,
+    fetchNextPage,
+  });
   const { profile } = useUserProfile();
   const { isConnected } = useWebSocketStore();
 
+  // Combine all pages into one array
   const conversations = useMemo(() => {
     const result = data?.pages.flatMap((page) => page.data);
 
@@ -179,7 +186,7 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
             />
           )}
 
-          <ConversationList>
+          <ConversationList onScroll={handleScroll}>
             {conversations?.map((item) => (
               <ConversationItem
                 key={item.id}
@@ -218,6 +225,7 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
                 )}
               </ConversationItem>
             ))}
+            {isFetchingNextPage && <LoadingOlder />}
           </ConversationList>
         </ConversationSection>
       </ConversationSidebar>

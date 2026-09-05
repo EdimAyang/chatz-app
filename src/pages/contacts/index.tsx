@@ -6,39 +6,66 @@ import { SearchBar } from "@/components/app/SearchBar";
 import { Avatar } from "@/components/app/Avatar";
 import { useGetUsersQuery } from "#/hooks/queries/useUsers";
 import { createConversation } from "#/api/conversation.api";
-import { UserListSkeleton } from "#/components/app/Loader";
+import { LoadingOlder, UserListSkeleton } from "#/components/app/Loader";
 // import { Button } from "#/components/app/Button";
 import { BottomNav } from "@/components/app/BottomNav";
 import { MobileNav } from "#/layouts/appLayouts";
+import { useInfiniteScroll } from "#/hooks/useInfiniteScroll";
+import{ useDebounce} from "#/hooks/useDebounce";
 
 const Contacts = () => {
   const [q, setQ] = useState("");
   const navigate = useNavigate();
+   const debounceQuery = useDebounce(q, 1000);
 
-  const { data, isLoading } = useGetUsersQuery("10");
+  const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } =
+    useGetUsersQuery(10, debounceQuery);
 
-  const contacts = useMemo(() => {
-    return data?.pages.flatMap((page) => page.data) ?? [];
-  }, [data]);
+  const contacts = useMemo(
+    () => data?.pages.flatMap((page) => page.data) ?? [],
+    [data],
+  );
 
   const groups = useMemo(() => {
-    const filtered = contacts?.filter((c) =>
-      c.username.toLowerCase().includes(q.toLowerCase()),
-    );
-    const m = new Map<string, typeof contacts>();
-    filtered.forEach((c) => {
-      const k = c.username[0].toUpperCase();
-      if (!m.has(k)) m.set(k, []);
-      m.get(k)!.push(c);
+    const map = new Map<string, typeof contacts>();
+
+    contacts.forEach((contact) => {
+      const key = contact.username[0]?.toUpperCase() ?? "#";
+
+      if (!map.has(key)) {
+        map.set(key, []);
+      }
+
+      map.get(key)!.push(contact);
     });
-    return Array.from(m.entries()).sort(([a], [b]) => a.localeCompare(b));
-  }, [q, contacts]);
+
+    return Array.from(map.entries()).sort(([a], [b]) => a.localeCompare(b));
+  }, [contacts]);
+
+  const handleInfiniteScroll = useInfiniteScroll({
+    direction: "bottom",
+    threshold: 120,
+    hasNextPage,
+    isFetchingNextPage,
+    fetchNextPage,
+  });
+
+  const handleContactClick = async (userId: string) => {
+    const response = await createConversation(userId);
+
+    if (response.conversation) {
+      navigate(`/chat/${response.conversation.id}`);
+    } else {
+      navigate(`/chat/new/${userId}`);
+    }
+  };
 
   if (isLoading) {
     return (
       <>
         <Header>
           <Title>Contacts</Title>
+
           <SearchBar
             placeholder="Search contacts"
             value={q}
@@ -52,17 +79,6 @@ const Contacts = () => {
       </>
     );
   }
-
-  const handleContactClick = async (userId: string) => {
-    // const response = await getConversationBetween(userId);
-    const response = await createConversation(userId);
-
-    if (response.conversation) {
-      navigate(`/chat/${response.conversation.id}`);
-    } else {
-      navigate(`/chat/new/${userId}`);
-    }
-  };
 
   return (
     <>
@@ -99,7 +115,7 @@ const Contacts = () => {
         </Button>
       </Invite> */}
 
-      <Wrapper>
+      <Wrapper onScroll={handleInfiniteScroll}>
         {groups.map(([letter, items]) => (
           <Group key={letter}>
             <Letter>{letter}</Letter>
@@ -117,6 +133,8 @@ const Contacts = () => {
             ))}
           </Group>
         ))}
+
+        {isFetchingNextPage && <LoadingOlder />}
       </Wrapper>
       <MobileNav>
         <BottomNav />

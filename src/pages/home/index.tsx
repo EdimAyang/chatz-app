@@ -5,13 +5,13 @@ import { Search, Plus, Wifi } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Avatar } from "@/components/app/Avatar";
 import { ConversationCard } from "@/components/app/ConversationCard";
-import { useUserProfile } from "@/store/auth.store";
+import { useAuthStore, useUserProfile } from "@/store/auth.store";
 import { getGreeting } from "@/utils/dates";
 import { useGetConversationsQuery } from "@/hooks/queries/useConversation";
 import { EmptyState } from "@/components/app/EmptyState";
 import { EmptyBoxIcon } from "@/components/icons/emptyBox";
 import { useWebSocketStore } from "#/store/websocket.store";
-import { ConversationListSkeleton } from "#/components/app/Loader";
+import { ConversationListSkeleton, LoadingOlder } from "#/components/app/Loader";
 import { PATHS } from "#/lib/paths";
 import { BottomNav } from "@/components/app/BottomNav";
 import { MobileNav } from "#/layouts/appLayouts";
@@ -21,17 +21,28 @@ import DesktopEmptyChat from "#/components/app/EmptyChat";
 import { useMediaQuery } from "#/hooks/useMediaQuery";
 import { api } from "#/api/axios";
 import { ConnectionBadge } from "#/components/app/chatPage";
+import { useInfiniteScroll } from "#/hooks/useInfiniteScroll";
 
 const Home = () => {
   // const [toast, setToast] = useState(false);
   const { profile } = useUserProfile();
   const { isConnected, isConnecting } = useWebSocketStore();
+    const { isAuthenticated } = useAuthStore();
   const isDesktop = useMediaQuery("(min-width: 768px)");
   const [isNetworkOnline, setIsNetworkOnline] = useState(() =>
     typeof navigator === "undefined" ? true : navigator.onLine,
   );
 
-  const { data, isLoading } = useGetConversationsQuery("50");
+ const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } =
+     useGetConversationsQuery("20", '', isAuthenticated);
+ 
+   const handleScroll = useInfiniteScroll({
+     direction: "bottom",
+     threshold: 120,
+     hasNextPage,
+     isFetchingNextPage,
+     fetchNextPage,
+   });
 
   useEffect(() => {
     const handleOnline = () => setIsNetworkOnline(true);
@@ -151,7 +162,7 @@ const Home = () => {
           </Head>
 
           {conversations?.length !== 0 ? (
-            <ChatWrapper>
+            <ChatWrapper onScroll={handleScroll}>
               <ChatsHeader>
                 <ChatsTitle>Chats</ChatsTitle>
               </ChatsHeader>
@@ -173,6 +184,7 @@ const Home = () => {
                   </motion.div>
                 ))}
               </AnimatePresence>
+              {isFetchingNextPage && <LoadingOlder />}
             </ChatWrapper>
           ) : (
             <EmptyState

@@ -1,5 +1,5 @@
 import { ArrowLeft, ChevronDown, Wifi } from "lucide-react";
-import { Fragment, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import styled, { keyframes } from "styled-components";
 import { Avatar } from "@/components/app/Avatar";
@@ -20,8 +20,10 @@ import { PATHS } from "#/lib/paths";
 import { SocketEvent } from "#/lib/constants";
 import {
   ChatHeaderSkeleton,
+  LoadingOlder,
   MessageListSkeleton,
 } from "#/components/app/Loader";
+import { useInfiniteScroll } from "#/hooks/useInfiniteScroll";
 
 type ChatPageProps = {
   conversationId?: string;
@@ -33,9 +35,10 @@ export default function ChatPage({
   recipientId,
 }: ChatPageProps) {
   const { profile } = useUserProfile();
-  console.log(conversationId, recipientId, "conversationId, recipientId");
+  
 
-  const { data, isLoading } = useGetMessageQuery(conversationId ?? "", "100");
+  const { data, isLoading, isFetchingNextPage, hasNextPage, fetchNextPage } =
+    useGetMessageQuery(conversationId ?? "", "100");
   const { data: userData, isLoading: isUserLoading } = useGetUserQuery(
     recipientId ?? "",
   );
@@ -105,7 +108,7 @@ export default function ChatPage({
     typingKey === conversationId && typingUserId !== profile?.data.id;
 
   const ourMessages = useMemo(() => {
-    return data?.pages.flatMap((page) => page.messages) ?? [];
+    return data?.pages.slice().reverse().flatMap((page) => page.messages) ?? [];
   }, [data]);
 
   const markedReadRef = useRef<Set<string>>(new Set());
@@ -135,8 +138,13 @@ export default function ChatPage({
     });
   }, [conversationId, profile?.data.id, ourMessages, send]);
 
-  const { isAtBottom, scrollToBottom, handleScroll, bottomRef, containerRef } =
-    useNewMsgTrigger(data ?? []);
+  const {
+    isAtBottom,
+    scrollToBottom,
+    handleScroll: handleBottomScroll,
+    bottomRef,
+    containerRef,
+  } = useNewMsgTrigger();
 
   const RecipientAvatar = firstPage?.recipient?.user?.avatarUrl ?? "";
   const RecipientName = firstPage?.recipient?.user?.username ?? "";
@@ -153,6 +161,21 @@ export default function ChatPage({
     }
   }, [ourMessages, isTyping, isAtBottom]);
 
+  const handleInfiniteScroll = useInfiniteScroll({
+    direction: "top",
+    threshold: 120,
+    hasNextPage,
+    isFetchingNextPage,
+    fetchNextPage,
+  });
+
+  const handleCombinedScroll = useCallback(
+    (event: React.UIEvent<HTMLElement>) => {
+      handleBottomScroll();
+      handleInfiniteScroll(event);
+    },
+    [handleBottomScroll, handleInfiniteScroll],
+  );
   const header = userData ? (
     <Header>
       <Back onClick={() => window.history.back()} aria-label="Back">
@@ -215,7 +238,10 @@ export default function ChatPage({
           {isMobile ? createPortal(header, document.body) : header}
           {isMobile && <HeaderSpace aria-hidden="true" />}
           {ourMessages.length > 0 && (
-            <Scroll ref={containerRef} onScroll={() => handleScroll()}>
+            <Scroll ref={containerRef} onScroll={handleCombinedScroll}>
+              <AnimatePresence>
+                {isFetchingNextPage && <LoadingOlder />}
+              </AnimatePresence>
               {ourMessages.map((m, index) => {
                 const previous = ourMessages[index - 1];
 

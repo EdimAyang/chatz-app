@@ -1,4 +1,6 @@
 import styled, { keyframes } from "styled-components";
+import { LoaderCircle } from "lucide-react";
+import { motion } from "framer-motion";
 
 const spin = keyframes`to { transform: rotate(360deg); }`;
 
@@ -273,3 +275,56 @@ export const ChatHeaderSkeleton = () => (
     </div>
   </HeaderSkeletonWrapper>
 );
+
+export const LoadingOlder = () => {
+  return (
+    <LoadingOlderWrapper
+      initial={{ opacity: 0, y: -10, scale: 0.9 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: -10, scale: 0.9 }}
+      transition={{ duration: 0.2 }}
+    >
+      <LoaderCircle size={16} className="spinner" />
+      <span>Loading</span>
+    </LoadingOlderWrapper>
+  );
+};
+
+
+const LoadingOlderWrapper = styled(motion.div)`
+  position: sticky;
+  top: 12px;
+  z-index: 10;
+
+  width: fit-content;
+  margin: 0 auto 10px;
+
+  display: flex;
+  align-items: center;
+  gap: 7px;
+
+  padding: 7px 12px;
+
+  background: ${({ theme }) => theme.colors.background};
+  border: 1px solid ${({ theme }) => theme.colors.border};
+  border-radius: 999px;
+
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+
+  font-size: 12px;
+  color: ${({ theme }) => theme.colors.textSecondary};
+
+  .spinner {
+    animation: spin 0.8s linear infinite;
+  }
+
+  @keyframes spin {
+    from {
+      transform: rotate(0deg);
+    }
+
+    to {
+      transform: rotate(360deg);
+    }
+  }
+`;

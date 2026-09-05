@@ -1,7 +1,15 @@
 import { Link } from "react-router-dom";
 import styled from "styled-components";
 import { motion } from "framer-motion";
-import { Moon, LogOut, ChevronRight, Camera } from "lucide-react";
+import {
+  Moon,
+  LogOut,
+  ChevronRight,
+  Camera,
+  BellPlus,
+  BellRing,
+  BellOff,
+} from "lucide-react";
 import { Avatar } from "@/components/app/Avatar";
 import { Divider } from "@/components/app/Divider";
 import { useThemeStore } from "#/store/theme.store";
@@ -11,6 +19,210 @@ import { useWebSocketStore } from "@/store/websocket.store";
 import InstallButton from "#/components/app/installationButton";
 import { BottomNav } from "#/components/app/BottomNav";
 import { MobileNav } from "#/layouts/appLayouts";
+import { useNotificationPermission } from "#/hooks/useNotificationPermission";
+import { getToken } from "firebase/messaging";
+import { getFirebaseMessagingInstance } from "@/firebase/index";
+import { registerFirebaseMessagingSW } from "@/firebase/register";
+import { api } from "#/api/axios";
+import toast from "react-hot-toast";
+
+const Settings = () => {
+  const { mode, toggle } = useThemeStore();
+  const { permission, requestPermission } = useNotificationPermission();
+
+  const notificationsEnabled = permission === "granted";
+
+  const enableNotifications = async () => {
+    if (Notification.permission === "denied") {
+      alert(
+        "Notifications are blocked. Please enable them from your browser settings.",
+      );
+      return;
+    }
+    const result = await requestPermission();
+
+    if (result !== "granted") {
+      toast.error("Notification permission was not granted");
+      return;
+    }
+
+    try {
+      const messaging = await getFirebaseMessagingInstance();
+
+      if (!messaging) {
+        throw new Error("Firebase Messaging isn't supported");
+        return;
+      }
+
+      const serviceWorkerRegistration = await registerFirebaseMessagingSW();
+
+      const token = await getToken(messaging, {
+        vapidKey: import.meta.env.VITE_FIREBASE_VAPID_KEY,
+        serviceWorkerRegistration: serviceWorkerRegistration ?? undefined,
+      });
+
+      if (!token) {
+        toast.error("No FCM token available");
+        return;
+      }
+
+      await api.post(PATHS.PUSH_NOTIFICATIONS.NOTIFICATIONS, {
+        deviceToken: token,
+      });
+    } catch (error) {
+      throw new Error((error as Error).message || "An error occurred while registering for push notifications");
+    }
+  };
+
+  const dark = mode === "dark";
+  // const nav = useNavigate();
+  const { logout } = useAuthStore();
+  const { profile } = useUserProfile();
+
+  const { disconnect } = useWebSocketStore();
+
+  const handleLogout = () => {
+    disconnect();
+    logout();
+  };
+
+  return (
+    <>
+      <Wrapper>
+        <Header>
+          <Title>Settings</Title>
+        </Header>
+        <Link
+          to={PATHS.CHAT.PROFILE}
+          style={{ display: "block", color: "inherit", textDecoration: "none" }}
+        >
+          <Profile>
+            <div style={{ position: "relative" }}>
+              <Avatar
+                src={
+                  profile?.data.avatar
+                    ? profile.data.avatar
+                    : "https://i.pravatar.cc/150?u=me"
+                }
+                size={64}
+              />
+              <div
+                style={{
+                  position: "absolute",
+                  right: -2,
+                  bottom: -2,
+                  background: "#FF4000",
+                  color: "#fff",
+                  width: 24,
+                  height: 24,
+                  borderRadius: 999,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  border: "2px solid #fff",
+                }}
+              >
+                <Camera size={12} />
+              </div>
+            </div>
+            <div style={{ flex: 1 }}>
+              <PName>{profile?.data.username}</PName>
+              <PSub>{profile?.data.email}</PSub>
+            </div>
+            <ChevronRight color="#B5B5B5" />
+          </Profile>
+        </Link>
+
+        <Card>
+          <Item as="div">
+            <IconWrap $bg="#EEF1FF" $c="#5B6CFF">
+              <Moon size={18} />
+            </IconWrap>
+            <Lbl>Dark mode</Lbl>
+            <Toggle
+              $on={dark}
+              onClick={toggle}
+              aria-label="Toggle dark mode"
+              aria-pressed={dark}
+            >
+              <Knob
+                animate={{ left: dark ? 23 : 3 }}
+                transition={{ type: "spring", stiffness: 500, damping: 32 }}
+              />
+            </Toggle>
+          </Item>
+          <Divider />
+          <InstallButton />
+          <Divider />
+          <Item>
+            <IconWrap $bg="#E0F7EC" $c="#34C759">
+              {permission === "granted" ? (
+                <BellRing size={18} />
+              ) : permission === "denied" ? (
+                <BellOff size={18} />
+              ) : (
+                <BellPlus size={18} />
+              )}
+            </IconWrap>
+            <Lbl>
+              {permission === "denied"
+                ? "Notifications blocked"
+                : permission === "granted"
+                  ? "Notifications enabled"
+                  : "Enable notifications"}
+            </Lbl>
+            <Toggle
+              $on={notificationsEnabled}
+              onClick={() => enableNotifications()}
+              aria-label="Notification permission"
+              aria-pressed={permission === "granted"}
+            >
+              <Knob
+                animate={{
+                  left: permission === "granted" ? 23 : 3,
+                }}
+                transition={{
+                  type: "spring",
+                  stiffness: 500,
+                  damping: 32,
+                }}
+              />
+            </Toggle>
+          </Item>
+
+          {/* <Divider />
+        <Item>
+          <IconWrap $bg="#FFE4EF" $c="#FA549C">
+            <Shield size={18} />
+          </IconWrap>
+          <Lbl>Security</Lbl>
+          <ChevronRight color="#B5B5B5" />
+        </Item> */}
+        </Card>
+
+        {/* <Card>
+        <Item>
+          <IconWrap $bg="#F0F0F0" $c="#7A7A7A">
+            <DownloadCloud size={18} />
+          </IconWrap>
+          <Lbl>Install app</Lbl>
+          <ChevronRight color="#B5B5B5" />
+        </Item>
+      </Card> */}
+
+        <LogoutBtn onClick={() => handleLogout()}>
+          <LogOut size={18} /> Log out
+        </LogoutBtn>
+      </Wrapper>
+
+      <MobileNav>
+        <BottomNav />
+      </MobileNav>
+    </>
+  );
+};
+
+export default Settings;
 
 const Wrapper = styled.div`
   display: flex;
@@ -118,126 +330,3 @@ const LogoutBtn = styled.button`
   gap: 8px;
   // margin-bottom: 7rem;
 `;
-
-const Settings = () => {
-  const { mode, toggle } = useThemeStore();
-  const dark = mode === "dark";
-  // const nav = useNavigate();
-  const { logout } = useAuthStore();
-  const { profile } = useUserProfile();
-
-  const { disconnect } = useWebSocketStore();
-
-  const handleLogout = () => {
-    disconnect();
-    logout();
-  };
-
-  return (
-    <>
-      <Wrapper>
-        <Header>
-          <Title>Settings</Title>
-        </Header>
-        <Link
-          to={PATHS.CHAT.PROFILE}
-          style={{ display: "block", color: "inherit", textDecoration: "none" }}
-        >
-          <Profile>
-            <div style={{ position: "relative" }}>
-              <Avatar
-                src={
-                  profile?.data.avatar
-                    ? profile.data.avatar
-                    : "https://i.pravatar.cc/150?u=me"
-                }
-                size={64}
-              />
-              <div
-                style={{
-                  position: "absolute",
-                  right: -2,
-                  bottom: -2,
-                  background: "#FF4000",
-                  color: "#fff",
-                  width: 24,
-                  height: 24,
-                  borderRadius: 999,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  border: "2px solid #fff",
-                }}
-              >
-                <Camera size={12} />
-              </div>
-            </div>
-            <div style={{ flex: 1 }}>
-              <PName>{profile?.data.username}</PName>
-              <PSub>{profile?.data.email}</PSub>
-            </div>
-            <ChevronRight color="#B5B5B5" />
-          </Profile>
-        </Link>
-
-        <Card>
-          <Item as="div">
-            <IconWrap $bg="#EEF1FF" $c="#5B6CFF">
-              <Moon size={18} />
-            </IconWrap>
-            <Lbl>Dark mode</Lbl>
-            <Toggle
-              $on={dark}
-              onClick={toggle}
-              aria-label="Toggle dark mode"
-              aria-pressed={dark}
-            >
-              <Knob
-                animate={{ left: dark ? 23 : 3 }}
-                transition={{ type: "spring", stiffness: 500, damping: 32 }}
-              />
-            </Toggle>
-          </Item>
-          <Divider />
-          <InstallButton />
-          {/* <Divider />
-        <Item>
-          <IconWrap $bg="#E0F7EC" $c="#34C759">
-            <Lock size={18} />
-          </IconWrap>
-          <Lbl>Privacy</Lbl>
-          <ChevronRight color="#B5B5B5" />
-        </Item>
-        <Divider />
-        <Item>
-          <IconWrap $bg="#FFE4EF" $c="#FA549C">
-            <Shield size={18} />
-          </IconWrap>
-          <Lbl>Security</Lbl>
-          <ChevronRight color="#B5B5B5" />
-        </Item> */}
-        </Card>
-
-        {/* <Card>
-        <Item>
-          <IconWrap $bg="#F0F0F0" $c="#7A7A7A">
-            <DownloadCloud size={18} />
-          </IconWrap>
-          <Lbl>Install app</Lbl>
-          <ChevronRight color="#B5B5B5" />
-        </Item>
-      </Card> */}
-
-        <LogoutBtn onClick={() => handleLogout()}>
-          <LogOut size={18} /> Log out
-        </LogoutBtn>
-      </Wrapper>
-
-      <MobileNav>
-        <BottomNav />
-      </MobileNav>
-    </>
-  );
-};
-
-export default Settings;
