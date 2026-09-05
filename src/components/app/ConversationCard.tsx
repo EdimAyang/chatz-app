@@ -43,7 +43,7 @@ export function ConversationCard({
   const x = useMotionValue(0);
   const bgOpacity = useTransform(x, [-120, -40, 0], [1, 0.7, 0]);
 
-  console.log(c)
+  console.log(c);
   return (
     <Outer>
       <motion.div
@@ -90,6 +90,7 @@ export function ConversationCard({
             alt={c?.recipient.username.charAt(0)}
             size={54}
             online={c?.recipient.isOnline}
+            userId={c?.recipient.id}
           />
           <Meta>
             <TopRow>

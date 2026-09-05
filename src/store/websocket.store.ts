@@ -2,7 +2,6 @@ import { create } from "zustand";
 import { SocketEvent } from "#/lib/constants";
 import { queryClient } from "@/lib/query-client";
 import { useOnlineUsersStore } from "./onlineUser.store";
-import toast from "react-hot-toast";
 
 type CachedMessages = {
   pages: {
@@ -73,7 +72,6 @@ export const useWebSocketStore = create<WebSocketState>((set, get) => ({
     const token = newToken ?? state.token;
 
     if (!token) {
-      toast.error("No WebSocket token available");
       return;
     }
 
@@ -124,6 +122,7 @@ export const useWebSocketStore = create<WebSocketState>((set, get) => ({
         typingKey: null,
         typingUserId: null,
       });
+      useOnlineUsersStore.getState().clearOnlineUsers();
 
       const { shouldReconnect, reconnectAttempts, reconnectTimer } = get();
 
@@ -137,8 +136,6 @@ export const useWebSocketStore = create<WebSocketState>((set, get) => ({
 
       // Exponential backoff
       const delay = Math.min(1000 * 2 ** reconnectAttempts, 30000);
-
-      toast.success(`🔄 Reconnecting in ${delay / 1000} seconds...`);
 
       const timer = setTimeout(() => {
         set({
@@ -154,9 +151,7 @@ export const useWebSocketStore = create<WebSocketState>((set, get) => ({
       });
     };
 
-    socket.onerror = (error: any) => {
-      toast.error("WebSocket error:", error.message);
-    };
+    socket.onerror = () => undefined;
 
     socket.onmessage = (event) => {
       const payload = JSON.parse(event.data);

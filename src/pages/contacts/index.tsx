@@ -109,6 +109,7 @@ const Contacts = () => {
                   src={c?.avatarUrl ?? ""}
                   size={44}
                   online={c.isOnline}
+                  userId={c.id}
                 />
                 <Name>{c.username}</Name>
                 {c.isOnline && <Online>Online</Online>}

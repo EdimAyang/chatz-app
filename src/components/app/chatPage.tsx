@@ -1,4 +1,4 @@
-import { ArrowLeft, ChevronDown } from "lucide-react";
+import { ArrowLeft, ChevronDown, Wifi } from "lucide-react";
 import { Fragment, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import styled, { keyframes } from "styled-components";
@@ -46,6 +46,9 @@ export default function ChatPage({
 
   const navigate = useNavigate();
   const [isMobile, setIsMobile] = useState(false);
+  const [isNetworkOnline, setIsNetworkOnline] = useState(() =>
+    typeof navigator === "undefined" ? true : navigator.onLine,
+  );
 
   useEffect(() => {
     const mediaQuery = window.matchMedia("(max-width: 767px)");
@@ -62,6 +65,19 @@ export default function ChatPage({
     }
   }, [createdConversationId]);
 
+  useEffect(() => {
+    const handleOnline = () => setIsNetworkOnline(true);
+    const handleOffline = () => setIsNetworkOnline(false);
+
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, []);
+
   const firstPage = data?.pages?.[0];
 
   const {
@@ -74,7 +90,16 @@ export default function ChatPage({
     resetAudio,
   } = useAudioRecorder();
 
-  const { typingKey, typingUserId, send } = useWebSocketStore();
+  const { typingKey, typingUserId, send, isConnected, isConnecting } =
+    useWebSocketStore();
+  const connectionIsHealthy = isNetworkOnline && isConnected;
+  const connectionLabel = !isNetworkOnline
+    ? "Offline"
+    : isConnecting
+      ? "Reconnecting"
+      : isConnected
+        ? "Connected"
+        : "Offline";
 
   const isTyping =
     typingKey === conversationId && typingUserId !== profile?.data.id;
@@ -137,6 +162,7 @@ export default function ChatPage({
         src={userData.data.avatar || ""}
         size={40}
         online={userData.data.isOnline}
+        userId={userData.data.id}
       />
       <Who>
         <Name>{userData.data.username || ""}</Name>
@@ -146,13 +172,22 @@ export default function ChatPage({
             : formatTime(userData.data.lastSeen || "")}
         </Status>
       </Who>
+      <ConnectionBadge $connected={connectionIsHealthy}>
+        <Wifi size={15} />
+        <span>{connectionLabel}</span>
+      </ConnectionBadge>
     </Header>
   ) : (
     <Header>
       <Back onClick={() => window.history.back()} aria-label="Back">
         <ArrowLeft size={20} />
       </Back>
-      <Avatar src={RecipientAvatar} size={40} online={RecipientIsOnline} />
+      <Avatar
+        src={RecipientAvatar}
+        size={40}
+        online={RecipientIsOnline}
+        userId={firstPage?.recipient?.user?.id}
+      />
       <Who>
         <Name>{RecipientName}</Name>
         <Status>
@@ -161,6 +196,10 @@ export default function ChatPage({
             : formatTime(RecipientLastSeen || "")}
         </Status>
       </Who>
+      <ConnectionBadge $connected={connectionIsHealthy}>
+        <Wifi size={15} />
+        <span>{connectionLabel}</span>
+      </ConnectionBadge>
     </Header>
   );
 
@@ -306,6 +345,28 @@ const Back = styled.button`
 const Who = styled.div`
   flex: 1;
   min-width: 0;
+`;
+
+const ConnectionBadge = styled.div<{
+  $connected: boolean;
+}>`
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+  padding: 6px 8px;
+  border-radius: 999px;
+  color: ${({ $connected }) => ($connected ? "#16803c" : "#c53030")};
+  background: ${({ $connected }) =>
+    $connected ? "rgba(34, 197, 94, 0.14)" : "rgba(239, 68, 68, 0.14)"};
+  font-size: 11px;
+  font-weight: 700;
+
+  @media (max-width: 420px) {
+    span {
+      display: none;
+    }
+  }
 `;
 const Name = styled.div`
   font-weight: 700;
