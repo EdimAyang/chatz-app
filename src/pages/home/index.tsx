@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import styled from "styled-components";
-import { Search, Plus } from "lucide-react";
+import { Search, Plus, Wifi } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Avatar } from "@/components/app/Avatar";
 import { ConversationCard } from "@/components/app/ConversationCard";
@@ -20,26 +20,50 @@ import DesktopEmptyChat from "#/components/app/EmptyChat";
 // import toast from "react-hot-toast";
 import { useMediaQuery } from "#/hooks/useMediaQuery";
 import { api } from "#/api/axios";
+import { ConnectionBadge } from "#/components/app/chatPage";
 
 const Home = () => {
   // const [toast, setToast] = useState(false);
   const { profile } = useUserProfile();
-  const { isConnected } = useWebSocketStore();
+  const { isConnected, isConnecting } = useWebSocketStore();
   const isDesktop = useMediaQuery("(min-width: 768px)");
+  const [isNetworkOnline, setIsNetworkOnline] = useState(() =>
+    typeof navigator === "undefined" ? true : navigator.onLine,
+  );
 
   const { data, isLoading } = useGetConversationsQuery("50");
 
-  const handleTestNotification = async () => {
-  try {
-    const { data } = await api.get(
-      PATHS.PUSH_NOTIFICATIONS.TEST,
-    );
+  useEffect(() => {
+    const handleOnline = () => setIsNetworkOnline(true);
+    const handleOffline = () => setIsNetworkOnline(false);
 
-    console.log(data);
-  } catch (error) {
-    console.error(error);
-  }
-};
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, []);
+
+  const connectionIsHealthy = isNetworkOnline && isConnected;
+  const connectionLabel = !isNetworkOnline
+    ? "Offline"
+    : isConnecting
+      ? "Reconnecting"
+      : isConnected
+        ? "Connected"
+        : "Offline";
+
+  const handleTestNotification = async () => {
+    try {
+      const { data } = await api.get(PATHS.PUSH_NOTIFICATIONS.TEST);
+
+      console.log(data);
+    } catch (error) {
+      console.error(error);
+    }
+  };
 
   const conversations = useMemo(() => {
     const result = data?.pages.flatMap((page) => page.data);
@@ -66,6 +90,11 @@ const Home = () => {
               <Hello>{getGreeting(new Date())}!</Hello>
               <Name>{profile?.data?.username}</Name>
             </Hi>
+
+            <ConnectionBadge $connected={connectionIsHealthy}>
+              <Wifi size={15} />
+              <span>{connectionLabel}</span>
+            </ConnectionBadge>
 
             <IconBtn to={PATHS.SEARCH.SEARCH} aria-label="Search">
               <Search size={20} />
@@ -110,6 +139,11 @@ const Home = () => {
                 <Name>{profile?.data?.username}</Name>
               </Hi>
 
+              <ConnectionBadge $connected={connectionIsHealthy}>
+                <Wifi size={15} />
+                <span>{connectionLabel}</span>
+              </ConnectionBadge>
+
               <IconBtn to={PATHS.SEARCH.SEARCH} aria-label="Search">
                 <Search size={20} />
               </IconBtn>
@@ -149,7 +183,11 @@ const Home = () => {
           )}
 
           <MobileNav>
-            <Fab whileTap={{ scale: 0.92 }} aria-label="New message"  onClick={()=>handleTestNotification()}>
+            <Fab
+              whileTap={{ scale: 0.92 }}
+              aria-label="New message"
+              onClick={() => handleTestNotification()}
+            >
               <Link to={PATHS.CONTACTS.CONTACTlIST}>
                 <Plus size={22} />
               </Link>
