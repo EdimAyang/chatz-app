@@ -1,6 +1,10 @@
 import { ENDPOINTS } from "@/api/endpoints";
 import { api } from "@/api/axios";
-import type { ConversationBetweenUsers, ConversationsResponse, CreateConversationResponse } from "@/types";
+import type {
+  ConversationBetweenUsers,
+  ConversationsResponse,
+  CreateConversationResponse,
+} from "@/types";
 
 export const getConversations = async (
   limit: string,
@@ -9,9 +13,9 @@ export const getConversations = async (
 ): Promise<ConversationsResponse> => {
   const res = await api.get<ConversationsResponse>(ENDPOINTS.CONVERSATIONS, {
     params: {
-      search,
       limit,
-      cursor,
+      ...(cursor ? { cursor } : {}),
+      ...(search ? { search } : {}),
     },
   });
   return res.data;
