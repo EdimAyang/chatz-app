@@ -347,7 +347,7 @@ const Who = styled.div`
   min-width: 0;
 `;
 
-const ConnectionBadge = styled.div<{
+export const ConnectionBadge = styled.div<{
   $connected: boolean;
 }>`
   display: inline-flex;
