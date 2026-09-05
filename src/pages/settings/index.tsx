@@ -24,6 +24,7 @@ import { getToken } from "firebase/messaging";
 import { getFirebaseMessagingInstance } from "@/firebase/index";
 import { registerFirebaseMessagingSW } from "@/firebase/register";
 import { api } from "#/api/axios";
+import toast from "react-hot-toast";
 
 const Settings = () => {
   const { mode, toggle } = useThemeStore();
@@ -36,7 +37,7 @@ const Settings = () => {
       alert(
         "Notifications are blocked. Please enable them from your browser settings.",
       );
-      return
+      return;
     }
     const result = await requestPermission();
 
@@ -69,7 +70,7 @@ const Settings = () => {
         deviceToken: token,
       });
     } catch (error) {
-      throw new Error("Failed to enable notifications:" || error)
+      throw new Error((error as Error).message || "An error occurred while registering for push notifications");
     }
   };
 

@@ -2,7 +2,7 @@ import { useCallback, useRef, useState } from "react";
 // import type { Message } from "@/types";
 
 
-export const useNewMsgTrigger = (messages: unknown) => {
+export const useNewMsgTrigger = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 

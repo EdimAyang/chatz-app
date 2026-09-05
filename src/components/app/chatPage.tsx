@@ -144,7 +144,7 @@ export default function ChatPage({
     handleScroll: handleBottomScroll,
     bottomRef,
     containerRef,
-  } = useNewMsgTrigger(data ?? []);
+  } = useNewMsgTrigger();
 
   const RecipientAvatar = firstPage?.recipient?.user?.avatarUrl ?? "";
   const RecipientName = firstPage?.recipient?.user?.username ?? "";
