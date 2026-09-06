@@ -18,15 +18,16 @@ firebase.initializeApp({
 const messaging = firebase.messaging();
 
 messaging.onBackgroundMessage((payload) => {
+  console.log(payload)
   const notification = payload.notification || {};
   self.registration.showNotification(notification.title, {
     body: notification.body,
 
     icon: notification.icon || "/icons/icon-192.png",
     badge: notification.badge || "/icons/notification.png",
-    vibrate: [200, 100, 200],
+    vibrate:  notification.vibrate || [200, 100, 200],
 
-    requireInteraction: true,
+    requireInteraction: notification.requireInteraction || true,
 
     data: payload.data,
   });
