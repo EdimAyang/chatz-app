@@ -1,13 +1,15 @@
 import { Outlet } from "react-router-dom";
 import styled from "styled-components";
 
+
 const GlobalLayout = () => {
+ 
   return (
-    <div style={{ height: "100%", overflow: "hidden" }}>
-      <Content>
-        <Outlet />
-      </Content>
-    </div>
+      <div style={{ height: "100%", overflow: "hidden" }}>
+        <Content>
+          <Outlet />
+        </Content>
+      </div>
   );
 };
 

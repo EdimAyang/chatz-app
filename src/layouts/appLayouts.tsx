@@ -2,10 +2,14 @@ import { Outlet } from "react-router-dom";
 import styled from "styled-components";
 import Sidebar from "@/components/app/sidebar";
 import { useState } from "react";
+import { useAppUpdate } from "#/hooks/useAppUpdate";
+import { UpdateToast } from "#/components/app/UpdateToast";
 
 const AppLayout = () => {
+   const { needRefresh, reload, dismiss } = useAppUpdate();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   return (
+    <>
     <Layout>
       <DesktopSidebar $collapsed={sidebarCollapsed}>
         <Sidebar
@@ -17,7 +21,10 @@ const AppLayout = () => {
       <MainContent>
         <Outlet />
       </MainContent>
+       {needRefresh &&  <UpdateToast onUpdate={reload} onDismiss={dismiss} />}
     </Layout>
+   
+    </>
   );
 };
 

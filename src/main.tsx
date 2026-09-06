@@ -7,6 +7,9 @@ import { RouterProvider } from "react-router-dom";
 import { GlobalStyle } from "./styles/global";
 import { queryClient } from "./lib/query-client";
 import { AppThemeProvider } from "./components/app/ThemeMode";
+import { registerAppServiceWorker } from "./utils/registerServiceWorker";
+
+registerAppServiceWorker()
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
