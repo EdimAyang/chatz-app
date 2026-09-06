@@ -19,7 +19,7 @@ export function UpdateToast({ onUpdate, onDismiss }: UpdateToastProps) {
       </Content>
 
       <Actions>
-        <UpdateButton onClick={onUpdate}>Reload</UpdateButton>
+        <UpdateButton onClick={onUpdate}>Update</UpdateButton>
         <DismissButton onClick={onDismiss} aria-label="Dismiss">
           <X size={16} />
         </DismissButton>

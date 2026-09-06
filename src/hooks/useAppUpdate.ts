@@ -1,20 +1,31 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 
-
-
-// A small hook/component to listen for that event and show your toast
 export function useAppUpdate() {
   const [needRefresh, setNeedRefresh] = useState(false);
- 
+  const registrationRef = useRef<ServiceWorkerRegistration | null>(null);
+
   useEffect(() => {
-    const handler = () => setNeedRefresh(true);
+    const handler = (e: Event) => {
+      const custom = e as CustomEvent<ServiceWorkerRegistration>;
+      registrationRef.current = custom.detail;
+      setNeedRefresh(true);
+    };
     window.addEventListener("app-update-available", handler);
     return () => window.removeEventListener("app-update-available", handler);
   }, []);
- 
-  const reload = () => window.location.reload();
+
+  const reload = () => {
+    setNeedRefresh(false); // hide the toast immediately
+
+    const waitingWorker = registrationRef.current?.waiting;
+    if (waitingWorker) {
+      waitingWorker.postMessage("SKIP_WAITING");
+    } else {
+      window.location.reload(); // fallback, shouldn't normally hit this
+    }
+  };
+
   const dismiss = () => setNeedRefresh(false);
- 
+
   return { needRefresh, reload, dismiss };
 }
- 
