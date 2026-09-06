@@ -25,6 +25,7 @@ import SearchScreen from "#/pages/search";
 export const router = createBrowserRouter([
   {
     element: <GlobalLayout />,
+    errorElement: <ErrorComponent />,
     children: [
       {
         index: true,
@@ -56,6 +57,7 @@ export const router = createBrowserRouter([
   // Protected routes
   {
     element: <ProtectedRoute />,
+    errorElement: <ErrorComponent/>, 
     children: [
       {
         id:"app",

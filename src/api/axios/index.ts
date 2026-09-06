@@ -6,6 +6,7 @@ let isRedirectingToLogin = false;
 
 export const api = axios.create({
   baseURL: BASE_URL,
+  timeout: 15000, 
 });
 
 api.interceptors.request.use(
