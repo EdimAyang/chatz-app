@@ -19,7 +19,7 @@ const messaging = firebase.messaging();
 
 messaging.onBackgroundMessage((payload) => {
   console.log(payload);
-  const notification = payload.notification || {};
+  const notification = payload.webpush.data || {};
   const data = payload.data || {};
 
   const title = notification.title || data.title || "Chatz";
@@ -37,7 +37,7 @@ messaging.onBackgroundMessage((payload) => {
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const clickData = event.notification.data;
+  const clickData = event.webpush.fcmOptions.link;
   const url = clickData?.url || "/";
 
   event.waitUntil(
