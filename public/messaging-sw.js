@@ -22,8 +22,8 @@ messaging.onBackgroundMessage((payload) => {
 
   self.registration.showNotification(data.title || "Chatz", {
     body: data.body || "",
-    icon: data.icon || "/icons/icon-192.png",
-    badge: data.badge || "/icons/notification.png",
+    icon: "https://chattzz.netlify.app/icons/icon-192.png", // hardcoded, absolute
+    badge: "https://chattzz.netlify.app/icons/notification.png",
     requireInteraction: data.requireInteraction === "true",
     vibrate: data.vibrate ? JSON.parse(data.vibrate) : [200, 100, 200],
     data: payload.data,
@@ -46,6 +46,6 @@ self.addEventListener("notificationclick", (event) => {
           }
         }
         return clients.openWindow(url);
-      })
+      }),
   );
 });
