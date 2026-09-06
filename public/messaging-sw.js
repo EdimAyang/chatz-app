@@ -18,45 +18,39 @@ firebase.initializeApp({
 const messaging = firebase.messaging();
 
 messaging.onBackgroundMessage((payload) => {
-  console.log(payload)
+  console.log(payload);
   const notification = payload.notification || {};
-  self.registration.showNotification(notification.title, {
-    body: notification.body,
+  const data = payload.data || {};
 
-    icon: notification.icon || "/icons/icon-192.png",
-    badge: notification.badge || "/icons/notification.png",
-    vibrate:  notification.vibrate || [200, 100, 200],
+  const title = notification.title || data.title || "Chatz";
+  const body = notification.body || data.body || "";
 
-    requireInteraction: notification.requireInteraction || true,
-
+  self.registration.showNotification(title, {
+    body,
+    icon: notification.icon || data.icon || "/icons/icon-192.png",
+    badge: notification.badge || data.badge || "/icons/notification.png",
+    vibrate: notification.vibrate || [200, 100, 200],
+    requireInteraction: true,
     data: payload.data,
   });
+});
 
-  self.addEventListener("notificationclick", (event) => {
-    event.notification.close();
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const clickData = event.notification.data;
+  const url = clickData?.url || "/";
 
-    const data = event.notification.data;
-
-    const url = data?.url || "/";
-
-    event.waitUntil(
-      clients
-        .matchAll({
-          type: "window",
-          includeUncontrolled: true,
-        })
-        .then((clientList) => {
-          // If Chatz is already open, focus it and navigate
-          for (const client of clientList) {
-            if ("focus" in client) {
-              client.navigate(url);
-              return client.focus();
-            }
+  event.waitUntil(
+    clients
+      .matchAll({ type: "window", includeUncontrolled: true })
+      .then((clientList) => {
+        for (const client of clientList) {
+          if ("focus" in client) {
+            client.navigate(url);
+            return client.focus();
           }
-
-          // Otherwise open Chatz
-          return clients.openWindow(url);
-        }),
-    );
-  });
+        }
+        return clients.openWindow(url);
+      })
+  );
 });
