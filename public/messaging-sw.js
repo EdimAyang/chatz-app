@@ -15,6 +15,14 @@ firebase.initializeApp({
   appId: "1:62212306014:web:470662fc9d0dc24b2cf0cf",
 });
 
+self.addEventListener("install", () => {
+  self.skipWaiting();
+});
+
+self.addEventListener("activate", (event) => {
+  event.waitUntil(clients.claim());
+});
+
 const messaging = firebase.messaging();
 
 messaging.onBackgroundMessage((payload) => {
@@ -36,8 +44,8 @@ messaging.onBackgroundMessage((payload) => {
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const clickData = event.webpush.fcmOptions.link;
-  const url = clickData?.url || "/";
+
+  const url = event.notification.data?.url || "/"; 
 
   event.waitUntil(
     clients
