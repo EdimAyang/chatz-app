@@ -18,26 +18,21 @@ firebase.initializeApp({
 const messaging = firebase.messaging();
 
 messaging.onBackgroundMessage((payload) => {
-  console.log(payload);
-  const notification = payload.notification || {};
   const data = payload.data || {};
 
-  const title = notification.title || data.title || "Chatz";
-  const body = notification.body || data.body || "";
-
-  self.registration.showNotification(title, {
-    body,
-    icon: notification.icon || data.icon || "/icons/icon-192.png",
-    badge: notification.badge || data.badge || "/icons/notification.png",
-    vibrate: notification.vibrate || [200, 100, 200],
-    requireInteraction: true,
+  self.registration.showNotification(data.title || "Chatz", {
+    body: data.body || "",
+    icon: data.icon || "/icons/icon-192.png",
+    badge: data.badge || "/icons/notification.png",
+    requireInteraction: data.requireInteraction === "true",
+    vibrate: data.vibrate ? JSON.parse(data.vibrate) : [200, 100, 200],
     data: payload.data,
   });
 });
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const clickData = event.notification.data;
+  const clickData = event.webpush.fcmOptions.link;
   const url = clickData?.url || "/";
 
   event.waitUntil(
