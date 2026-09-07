@@ -1,9 +1,7 @@
-export async function registerFirebaseMessagingSW() {
+export async function registerFirebaseMessagingSW(): Promise<ServiceWorkerRegistration> {
   if (!("serviceWorker" in navigator)) {
-    return null;
+    throw new Error("Service workers are not supported");
   }
 
-  return navigator.serviceWorker.register(
-    "/messaging-sw.js"
-  );
+  return navigator.serviceWorker.ready;
 }

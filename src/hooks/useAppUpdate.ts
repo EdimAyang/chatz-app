@@ -2,30 +2,56 @@ import { useEffect, useState, useRef } from "react";
 
 export function useAppUpdate() {
   const [needRefresh, setNeedRefresh] = useState(false);
+
   const registrationRef = useRef<ServiceWorkerRegistration | null>(null);
 
   useEffect(() => {
-    const handler = (e: Event) => {
-      const custom = e as CustomEvent<ServiceWorkerRegistration>;
-      registrationRef.current = custom.detail;
+    const handler = (event: Event) => {
+      const custom = event as CustomEvent<ServiceWorkerRegistration>;
+
+      const registration = custom.detail;
+
+      if (!registration?.waiting) return;
+
+      registrationRef.current = registration;
+
       setNeedRefresh(true);
     };
+
     window.addEventListener("app-update-available", handler);
-    return () => window.removeEventListener("app-update-available", handler);
+
+    return () => {
+      window.removeEventListener("app-update-available", handler);
+    };
   }, []);
 
   const reload = () => {
-    setNeedRefresh(false); // hide the toast immediately
-
     const waitingWorker = registrationRef.current?.waiting;
-    if (waitingWorker) {
-      waitingWorker.postMessage("SKIP_WAITING");
-    } else {
-      window.location.reload(); // fallback, shouldn't normally hit this
+
+    console.log("Update clicked");
+    console.log("Waiting worker:", waitingWorker);
+
+    setNeedRefresh(false);
+
+    if (!waitingWorker) {
+      window.location.reload();
+      return;
     }
+
+    // Tell the SW system that this controllerchange
+    // was intentionally triggered by the user.
+    window.dispatchEvent(new Event("app-update-requested"));
+
+    waitingWorker.postMessage("SKIP_WAITING");
   };
 
-  const dismiss = () => setNeedRefresh(false);
+  const dismiss = () => {
+    setNeedRefresh(false);
+  };
 
-  return { needRefresh, reload, dismiss };
+  return {
+    needRefresh,
+    reload,
+    dismiss,
+  };
 }

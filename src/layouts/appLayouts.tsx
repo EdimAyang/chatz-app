@@ -2,28 +2,34 @@ import { Outlet } from "react-router-dom";
 import styled from "styled-components";
 import Sidebar from "@/components/app/sidebar";
 import { useState } from "react";
-import { useAppUpdate } from "#/hooks/useAppUpdate";
-import { UpdateToast } from "#/components/app/UpdateToast";
+import { useWhatsNew } from "#/hooks/useWhatsNew";
+import { WhatsNewModal } from "#/components/app/WhatsNewModal";
 
 const AppLayout = () => {
-   const { needRefresh, reload, dismiss } = useAppUpdate();
+  const { show, close, update } = useWhatsNew();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   return (
     <>
-    <Layout>
-      <DesktopSidebar $collapsed={sidebarCollapsed}>
-        <Sidebar
-          collapsed={sidebarCollapsed}
-          onToggle={() => setSidebarCollapsed((prev) => !prev)}
-        />
-      </DesktopSidebar>
+      <Layout>
+        <DesktopSidebar $collapsed={sidebarCollapsed}>
+          <Sidebar
+            collapsed={sidebarCollapsed}
+            onToggle={() => setSidebarCollapsed((prev) => !prev)}
+          />
+        </DesktopSidebar>
 
-      <MainContent>
-        <Outlet />
-      </MainContent>
-       {needRefresh &&  <UpdateToast onUpdate={reload} onDismiss={dismiss} />}
-    </Layout>
-   
+        <MainContent>
+          <Outlet />
+        </MainContent>
+        {show && (
+          <WhatsNewModal
+            title={update.title}
+            version={update.version}
+            features={update.features}
+            onClose={close}
+          />
+        )}
+      </Layout>
     </>
   );
 };
