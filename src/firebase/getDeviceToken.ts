@@ -17,7 +17,6 @@ export async function registerForPushNotifications() {
 
   if (permission !== "granted") {
     console.log("Notification permission denied");
-
     return null;
   }
 
@@ -25,26 +24,29 @@ export async function registerForPushNotifications() {
 
   if (!messaging) {
     console.log("Firebase Messaging isn't supported");
-
     return null;
   }
 
-  const serviceWorkerRegistration = await registerFirebaseMessagingSW();
+  // Use the existing /sw.js
+  const serviceWorkerRegistration =
+    await registerFirebaseMessagingSW();
 
   const token = await getToken(messaging, {
     vapidKey: import.meta.env.VITE_FIREBASE_VAPID_KEY,
-    serviceWorkerRegistration: serviceWorkerRegistration ?? undefined,
+    serviceWorkerRegistration,
   });
 
   if (!token) {
     console.log("No FCM token available");
-
     return null;
   }
 
-  if (token) {
-    await api.post(PATHS.PUSH_NOTIFICATIONS.NOTIFICATIONS, { deviceToken: token });
-  }
+  await api.post(
+    PATHS.PUSH_NOTIFICATIONS.NOTIFICATIONS,
+    {
+      deviceToken: token,
+    }
+  );
 
   return token;
 }

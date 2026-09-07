@@ -7,12 +7,13 @@ import { RouterProvider } from "react-router-dom";
 import { GlobalStyle } from "./styles/global";
 import { queryClient } from "./lib/query-client";
 import { AppThemeProvider } from "./components/app/ThemeMode";
-// import { registerAppServiceWorker } from "./utils/registerServiceWorker";
+import { registerAppServiceWorker } from "./utils/registerServiceWorker";
+import AppUpdater from "./components/app/AppUpdater";
 
 // main.tsx
-// if (import.meta.env.PROD) {
-//   registerAppServiceWorker();
-// }
+if (import.meta.env.PROD) {
+  registerAppServiceWorker();
+}
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
@@ -20,6 +21,7 @@ createRoot(document.getElementById("root")!).render(
       <AppThemeProvider>
         <Toaster position="top-center" reverseOrder={false} />
         <GlobalStyle />
+         <AppUpdater />
         <RouterProvider router={router} />
       </AppThemeProvider>
     </QueryClientProvider>
