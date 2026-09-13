@@ -1,7 +1,8 @@
 import styled, { keyframes } from "styled-components";
-import { Pause, Play } from "lucide-react";
+import { Check, CheckCheck, Pause, Play } from "lucide-react";
 import { motion } from "framer-motion";
 import { useRef, useState, useEffect } from "react";
+import { StatusIcon, type ReplyToMessage } from "./MessageBubble";
 
 const Row = styled.div<{ $mine: boolean }>`
   display: flex;
@@ -76,9 +77,28 @@ type AudioBubbleProps = {
   audio: string;
   duration: number;
   time: string;
+  isRead: boolean;
+
+  onReply?: () => void;
+  onDelete?: () => void;
+  replyTo?: ReplyToMessage | null;
+  reactions?: {
+    userId: string;
+    emoji: string;
+  }[];
+  currentUserId?: string;
+  onReact?: (emoji: string) => void;
+  onRemoveReaction?: (emoji: string) => void;
 };
 
-export function AudioBubble({ mine, audio, duration, time }: AudioBubbleProps) {
+
+export function AudioBubble({
+  mine,
+  audio,
+  duration,
+  time,
+  isRead,
+}: AudioBubbleProps) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
@@ -225,6 +245,11 @@ export function AudioBubble({ mine, audio, duration, time }: AudioBubbleProps) {
 
         <Duration>{duration}s</Duration>
         <Time $mine={mine}>{time}</Time>
+        {mine && (
+          <StatusIcon $mine={mine} $read={Boolean(isRead)}>
+            {isRead ? <CheckCheck size={12} /> : <Check size={12} />}
+          </StatusIcon>
+        )}
       </Bubble>
     </Row>
   );

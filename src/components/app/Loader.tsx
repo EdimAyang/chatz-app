@@ -247,7 +247,7 @@ export const MessageSkeleton = ({ isOwn }: { isOwn?: boolean }) => (
 
 export const MessageListSkeleton = () => (
   <SkeletonWrapper style={{ padding: "12px 0" }}>
-    {Array.from({ length: 6 }).map((_, i) => (
+    {Array.from({ length: 7 }).map((_, i) => (
       <MessageSkeleton key={i} isOwn={i % 2 === 0} />
     ))}
   </SkeletonWrapper>

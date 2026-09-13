@@ -24,6 +24,8 @@ import {
   MessageListSkeleton,
 } from "#/components/app/Loader";
 import { useInfiniteScroll } from "#/hooks/useInfiniteScroll";
+// import type { MessageRendererProps } from "./messageRenderer";
+import type { ChatMessage, MessageStatus } from "#/types";
 
 type ChatPageProps = {
   conversationId?: string;
@@ -35,7 +37,10 @@ export default function ChatPage({
   recipientId,
 }: ChatPageProps) {
   const { profile } = useUserProfile();
-  
+  const [editingMessage, setEditingMessage] = useState<ChatMessage | null>(
+    null,
+  );
+  const [replyingTo, setReplyingTo] = useState<ChatMessage | null>(null);
 
   const { data, isLoading, isFetchingNextPage, hasNextPage, fetchNextPage } =
     useGetMessageQuery(conversationId ?? "", "100");
@@ -107,9 +112,38 @@ export default function ChatPage({
   const isTyping =
     typingKey === conversationId && typingUserId !== profile?.data.id;
 
-  const ourMessages = useMemo(() => {
-    return data?.pages.slice().reverse().flatMap((page) => page.messages) ?? [];
-  }, [data]);
+    console.log(
+  "PAGE ORDER",
+  data?.pages.map((page, index) => ({
+    page: index,
+    first: page.messages[0]?.createdAt,
+    last: page.messages[page.messages.length - 1]?.createdAt,
+  })),
+);
+
+const ourMessages = useMemo(() => {
+  return (
+    data?.pages
+      .slice()
+      .reverse()
+      .flatMap((page) =>
+        page.messages.map((message) => ({
+          ...message,
+          status: message.status ?? ("sent" as MessageStatus),
+        })),
+      ) ?? []
+  );
+}, [data]);
+
+console.log(
+  "OUR MESSAGE ORDER",
+  ourMessages.map((m) => ({
+    id: m.id,
+    type: m.messageType,
+    createdAt: m.createdAt,
+  })),
+);
+
 
   const markedReadRef = useRef<Set<string>>(new Set());
 
@@ -176,6 +210,7 @@ export default function ChatPage({
     },
     [handleBottomScroll, handleInfiniteScroll],
   );
+
   const header = userData ? (
     <Header>
       <Back onClick={() => window.history.back()} aria-label="Back">
@@ -259,8 +294,24 @@ export default function ChatPage({
                     )}
 
                     <MessageRenderer
+                      status={m.status}
                       message={m}
                       mine={m.senderId === profile?.data.id}
+                  
+                      onEdit={(message) => {
+                        if (message.id.startsWith("temp-")) {
+                          return;
+                        }
+                        setEditingMessage(message);
+                        setReplyingTo(null);
+                      }}
+                      onReply={(message) => {
+                        if (message.id.startsWith("temp-")) {
+                          return;
+                        }
+                        setReplyingTo(message);
+                        setEditingMessage(null);
+                      }}
                     />
                   </Fragment>
                 );
@@ -306,6 +357,10 @@ export default function ChatPage({
         recipientId={recipientId ?? ""}
         scrollToBottom={scrollToBottom}
         isAtBottom={isAtBottom}
+        editingMessage={editingMessage!}
+        setEditingMessage={setEditingMessage!}
+        replyingTo={replyingTo}
+        setReplyingTo={setReplyingTo}
       />
     </ChatLayout>
   );

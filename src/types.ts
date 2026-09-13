@@ -1,3 +1,4 @@
+import type { ReplyToMessage } from "./components/app/MessageBubble";
 import type { MessageType } from "./lib/constants";
 
 export interface Message {
@@ -113,6 +114,7 @@ export interface MessageResponse {
     readAt: string | null;
     createdAt: string;
     updatedAt: string | null;
+    editedAt: string | null;
     isDeleted: boolean;
     deletedAt: string | null;
     duration: number | null;
@@ -120,12 +122,22 @@ export interface MessageResponse {
     attachmentUrl: string | null;
     attachmentPublicId: string | null;
     mimeType: string | null;
+    status?:MessageStatus;
+    reactions?: {
+      userId: string;
+      emoji: string;
+    }[];
   }[];
   sender: {
     id: string;
     username: string;
     avatarUrl: string | null;
   };
+}
+
+export interface MessageReaction {
+  userId: string;
+  emoji: string;
 }
 
 export interface UsersResponse {
@@ -194,6 +206,7 @@ export interface SendMessageResponse {
     attachmentUrl: string | null;
     attachmentPublicId: string | null;
     mimeType: string | null;
+    status?: MessageStatus;
     sender: {
       id: string;
       username: string;
@@ -232,7 +245,6 @@ export type AudioPayload = {
 
 export type AudioResponse = {};
 
-
 export interface Conversation {
   id: string;
   conversationKey: string;
@@ -246,4 +258,47 @@ export interface Conversation {
 export interface CreateConversationResponse {
   success: boolean;
   conversation: Conversation;
+}
+
+export type MessageStatus = "sending" | "sent" | "read" | "failed";
+
+export interface  ChatMessage {
+  id: string;
+  clientMessageId?: string,
+  conversationId: string;
+  senderId: string;
+  message: string;
+  fileName?:string;
+
+  isRead: boolean;
+  readAt: string | null;
+
+  createdAt: string;
+  updatedAt: string | null;
+  editedAt: string | null;
+
+  isDeleted: boolean;
+  deletedAt: string | null;
+
+  duration: number | null;
+
+  messageType: MessageType;
+  
+
+  attachmentUrl: string | null;
+  attachmentPublicId: string | null;
+  mimeType: string | null;
+
+  reactions?: {
+    userId: string;
+    emoji: string;
+  }[];
+
+  // The message being replied to
+  replyToMessageId?: string | null;
+
+  // Populated when displaying the message
+  replyTo?: ReplyToMessage | null;
+
+  status?: MessageStatus;
 }

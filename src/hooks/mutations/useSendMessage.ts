@@ -4,34 +4,92 @@ import { getErrorMessage } from "@/utils/error-message";
 import toast from "react-hot-toast";
 import { sendAudio } from "#/api/sendAudio.api";
 import { sendFile, sendImage, sendVideo } from "#/api/sendMedia.api";
+import type { CachedMessages } from "#/store/websocket.store";
 
 const updateMessageCache = (
   queryClient: ReturnType<typeof useQueryClient>,
   data: any,
 ) => {
-  const conversationId = data.message.conversationId;
+  const message = data.message;
 
-  queryClient.setQueryData(["messages", conversationId], (oldData: any) => {
-    if (!oldData) return oldData;
+  if (!message) return;
 
-    return {
-      ...oldData,
-      pages: oldData.pages
-        ? [
-            {
-              ...oldData.pages[0],
-              messages: [data.message, ...(oldData.pages[0]?.messages || [])],
-            },
-            ...oldData.pages.slice(1),
-          ]
-        : oldData,
-    };
-  });
+  const conversationId = message.conversationId;
 
-  void queryClient.invalidateQueries({
-    queryKey: ["messages", conversationId],
-  });
+  queryClient.setQueryData<CachedMessages>(
+    ["messages", conversationId],
+    (old) => {
+      if (!old?.pages?.length) return old;
+
+      const pages = [...old.pages];
+
+      const firstPage = pages[0];
+
+      const alreadyExists = firstPage.messages.some(
+        (item) => item.id === message.id,
+      );
+
+      if (alreadyExists) {
+        return old;
+      }
+
+      pages[0] = {
+        ...firstPage,
+        messages: [
+          ...firstPage.messages,
+          message,
+        ],
+      };
+
+      return {
+        ...old,
+        pages,
+      };
+    },
+  );
+
+    const updatedData = queryClient.getQueryData(["messages", conversationId]);
+
+  console.log("UPDATED CACHE:", updatedData);
 };
+
+// const updateMessageCache = (
+//   queryClient: ReturnType<typeof useQueryClient>,
+//   data: any,
+// ) => {
+//   const message = data.message;
+
+//   if (!message) {
+//     console.error("No message returned:", data);
+//     return;
+//   }
+
+//   const conversationId = message.conversationId;
+
+//   queryClient.setQueryData(["messages", conversationId], (oldData: any) => {
+//     if (!oldData?.pages?.length) {
+//       return oldData;
+//     }
+
+//     return {
+//       ...oldData,
+//       pages: oldData.pages.map((page: any, index: number) => {
+//         if (index !== 0) return page;
+
+//         return {
+//           ...page,
+//           messages: [message, ...(page.messages ?? [])],
+//         };
+//       }),
+//     };
+//   });
+
+//   const updatedData = queryClient.getQueryData(["messages", conversationId]);
+
+//   console.log("UPDATED CACHE:", updatedData);
+// };
+
+
 
 export const useSendMessage = () => {
   const queryClient = useQueryClient();
@@ -57,6 +115,8 @@ export const useSendAudio = () => {
     mutationKey: ["audio"],
     mutationFn: sendAudio,
     onSuccess: (data) => {
+      console.log("MEDIA MESSAGE RESPONSE:", data);
+
       updateMessageCache(queryClient, data);
     },
     onError: (error) => {

@@ -2,8 +2,13 @@ import { create } from "zustand";
 import { SocketEvent } from "#/lib/constants";
 import { queryClient } from "@/lib/query-client";
 import { useOnlineUsersStore } from "./onlineUser.store";
+import type { ChatMessage } from "#/types";
+import {
+  getPendingMessages,
+  removePendingMessage,
+} from "#/lib/offline/messageQueue";
 
-type CachedMessages = {
+export type CachedMessages = {
   pages: {
     messages: any[];
     nextCursor: string | null;
@@ -33,7 +38,10 @@ type WebSocketState = {
   connect: (token?: string | null) => void;
   disconnect: () => void;
 
-  send: (payload: any) => void;
+  send: (payload: any) => boolean;
+
+  // 👇 THIS MUST BE HERE
+  flushPendingMessages: () => Promise<void>;
 };
 
 export const useWebSocketStore = create<WebSocketState>((set, get) => ({
@@ -51,6 +59,58 @@ export const useWebSocketStore = create<WebSocketState>((set, get) => ({
   shouldReconnect: true,
   reconnectTimer: null,
   reconnectAttempts: 0,
+  flushPendingMessages: async () => {
+    const socket = get().socket;
+
+    if (!navigator.onLine) {
+      console.log("📴 Still offline, cannot flush messages");
+      return;
+    }
+
+    if (!socket || socket.readyState !== WebSocket.OPEN) {
+      console.log("🔴 WebSocket not connected");
+      return;
+    }
+
+    const pendingMessages = await getPendingMessages();
+
+    if (!pendingMessages.length) {
+      console.log("📭 No pending messages");
+      return;
+    }
+
+    console.log(`📦 Flushing ${pendingMessages.length} pending message(s)`);
+
+    for (const message of pendingMessages) {
+      if (!navigator.onLine) {
+        console.log("📴 Went offline during flush");
+        break;
+      }
+
+      if (socket.readyState !== WebSocket.OPEN) {
+        console.log("🔴 Socket closed during flush");
+        break;
+      }
+
+      console.log("📤 Flushing:", message.clientMessageId);
+
+      socket.send(
+        JSON.stringify({
+          type: SocketEvent.NEW_MESSAGE,
+          conversationId: message.conversationId,
+          messageType: message.messageType,
+          message: message.message,
+
+          ...(message.recipientId && {
+            recipientId: message.recipientId,
+          }),
+
+          replyToMessageId: message.replyToMessageId,
+          clientMessageId: message.clientMessageId,
+        }),
+      );
+    }
+  },
 
   setTyping: (typingKey, userId) => {
     set({
@@ -110,6 +170,8 @@ export const useWebSocketStore = create<WebSocketState>((set, get) => ({
         isConnecting: false,
         reconnectAttempts: 0,
       });
+
+      void get().flushPendingMessages();
     };
 
     socket.onclose = () => {
@@ -171,6 +233,132 @@ export const useWebSocketStore = create<WebSocketState>((set, get) => ({
           });
           break;
 
+        case SocketEvent.MESSAGE_REACTION: {
+          queryClient.setQueryData(
+            ["messages", payload.conversationId],
+            (oldData: any) => {
+              if (!oldData) return oldData;
+
+              return {
+                ...oldData,
+                pages: oldData.pages.map((page: any) => ({
+                  ...page,
+                  messages: page.messages.map((message: any) => {
+                    if (message.id !== payload.messageId) {
+                      return message;
+                    }
+
+                    const reactions = message.reactions ?? [];
+
+                    // ----------------------------------------
+                    // REMOVE REACTION
+                    // ----------------------------------------
+
+                    if (payload.action === "remove") {
+                      return {
+                        ...message,
+                        reactions: reactions.filter(
+                          (reaction: any) =>
+                            reaction.userId !== payload.senderId,
+                        ),
+                      };
+                    }
+
+                    // ----------------------------------------
+                    // ADD / CHANGE REACTION
+                    // ----------------------------------------
+
+                    const existingReaction = reactions.find(
+                      (reaction: any) => reaction.userId === payload.senderId,
+                    );
+
+                    if (existingReaction) {
+                      return {
+                        ...message,
+                        reactions: reactions.map((reaction: any) =>
+                          reaction.userId === payload.senderId
+                            ? {
+                                ...reaction,
+                                emoji: payload.emoji,
+                              }
+                            : reaction,
+                        ),
+                      };
+                    }
+
+                    return {
+                      ...message,
+                      reactions: [
+                        ...reactions,
+                        {
+                          userId: payload.senderId,
+                          emoji: payload.emoji,
+                        },
+                      ],
+                    };
+                  }),
+                })),
+              };
+            },
+          );
+
+          break;
+        }
+
+        case SocketEvent.DELETE_MESSAGE: {
+          queryClient.setQueryData(
+            ["messages", payload.conversationId],
+            (oldData: any) => {
+              if (!oldData) return oldData;
+
+              return {
+                ...oldData,
+                pages: oldData.pages.map((page: any) => ({
+                  ...page,
+                  messages: page.messages.map((message: any) =>
+                    message.id === payload.messageId
+                      ? {
+                          ...message,
+                          isDeleted: true,
+                          deletedAt: payload.deletedAt,
+                        }
+                      : message,
+                  ),
+                })),
+              };
+            },
+          );
+
+          break;
+        }
+
+        case SocketEvent.EDIT_MESSAGE: {
+          queryClient.setQueryData(
+            ["messages", payload.conversationId],
+            (oldData: any) => {
+              if (!oldData) return oldData;
+
+              return {
+                ...oldData,
+                pages: oldData.pages.map((page: any) => ({
+                  ...page,
+                  messages: page.messages.map((message: any) =>
+                    message.id === payload.messageId
+                      ? {
+                          ...message,
+                          message: payload.message,
+                          editedAt: payload.editedAt,
+                        }
+                      : message,
+                  ),
+                })),
+              };
+            },
+          );
+
+          break;
+        }
+
         case SocketEvent.USER_ONLINE:
           useOnlineUsersStore.getState().setOnlineUsers(payload.users);
           break;
@@ -201,28 +389,51 @@ export const useWebSocketStore = create<WebSocketState>((set, get) => ({
           break;
 
         case SocketEvent.NEW_MESSAGE: {
-          const newMessage = {
+          if (payload.clientMessageId) {
+            void removePendingMessage(payload.clientMessageId);
+          }
+
+          const newMessage: ChatMessage = {
             id: payload.messageId,
+            clientMessageId: payload.clientMessageId ?? null,
+
             conversationId: payload.conversationId,
             senderId: payload.senderId,
+
             messageType: payload.messageType,
             message: payload.message,
-            attachmentUrl: payload.attachmentUrl,
-            attachmentPublicId: payload.attachmentPublicId,
-            mimeType: payload.mimeType,
-            duration: payload.duration,
-            isRead: payload.isRead,
-            createdAt: new Date().toISOString(),
-            readAt: null,
-            updatedAt: null,
+
+            attachmentUrl: payload.attachmentUrl ?? null,
+            attachmentPublicId: payload.attachmentPublicId ?? null,
+            mimeType: payload.mimeType ?? null,
+            duration: payload.duration ?? null,
+
+            isRead: payload.isRead ?? false,
+            readAt: payload.readAt ?? null,
+
+            createdAt: payload.createdAt ?? new Date().toISOString(),
+            updatedAt: payload.updatedAt ?? null,
+
             isDeleted: false,
             deletedAt: null,
+            editedAt: null,
+
+            replyToMessageId: payload.replyToMessageId ?? null,
+            replyTo: payload.replyTo ?? null,
+
+            reactions: payload.reactions ?? [],
+
+            status: "sent",
           };
 
           queryClient.setQueryData<CachedMessages>(
             ["messages", payload.conversationId],
             (old) => {
-              if (!old) {
+
+               console.log("🟡 OLD CACHE", old);
+               
+              // No cache yet
+              if (!old?.pages?.length) {
                 return {
                   pages: [
                     {
@@ -230,17 +441,56 @@ export const useWebSocketStore = create<WebSocketState>((set, get) => ({
                       nextCursor: null,
                     },
                   ],
-                  pageParams: [],
+                  pageParams: [""],
                 };
               }
 
-              const pages = [...old.pages];
-              const lastPage = pages[pages.length - 1];
+              const pages = old.pages.map((page) => ({
+                ...page,
+                messages: [...page.messages],
+              }));
 
-              pages[pages.length - 1] = {
-                ...lastPage,
-                messages: [...lastPage.messages, newMessage],
-              };
+              let replacedOptimistic = false;
+
+              // ----------------------------------------
+              // FIND AND REPLACE OPTIMISTIC MESSAGE
+              // ----------------------------------------
+
+              if (payload.clientMessageId) {
+                for (let i = 0; i < pages.length; i++) {
+                  const index = pages[i].messages.findIndex(
+                    (message) =>
+                      message.id === payload.clientMessageId ||
+                      message.clientMessageId === payload.clientMessageId,
+                  );
+
+                  if (index !== -1) {
+                    pages[i].messages[index] = newMessage;
+                    replacedOptimistic = true;
+                    break;
+                  }
+                }
+              }
+
+              // ----------------------------------------
+              // NEW MESSAGE FROM OTHER USER
+              // ----------------------------------------
+
+              if (!replacedOptimistic) {
+                const firstPage = pages[0];
+
+                // Prevent duplicates
+                const alreadyExists = pages.some((page) =>
+                  page.messages.some((message) => message.id === newMessage.id),
+                );
+
+                if (!alreadyExists) {
+                  pages[0] = {
+                    ...firstPage,
+                    messages: [...firstPage.messages, newMessage],
+                  };
+                }
+              }
 
               return {
                 ...old,
@@ -249,13 +499,9 @@ export const useWebSocketStore = create<WebSocketState>((set, get) => ({
             },
           );
 
-          queryClient.invalidateQueries({
+          void queryClient.invalidateQueries({
             queryKey: ["conversations"],
           });
-
-          // queryClient.invalidateQueries({
-          //   queryKey: ["messages", payload.conversationId],
-          // });
 
           if (payload.conversationId) {
             set({
@@ -302,22 +548,37 @@ export const useWebSocketStore = create<WebSocketState>((set, get) => ({
   send: (payload) => {
     const socket = get().socket;
 
+    // console.log("========== WS SEND ==========");
+    // console.log("payload:", payload);
+    // console.log("socket:", socket);
+    // console.log("readyState:", socket?.readyState);
+    // console.log("OPEN:", WebSocket.OPEN);
+
     if (!socket) {
       console.error("No connection");
-      return;
+      return false;
     }
 
     if (socket.readyState !== WebSocket.OPEN) {
       console.error("WebSocket is not ready");
-      return;
+      return false;
     }
 
+    console.log("✅ Sending through WebSocket");
+
     socket.send(JSON.stringify(payload));
-    queryClient.invalidateQueries({
-      queryKey: ["messages", payload.conversationId],
-    });
+
+    console.log("✅ socket.send() completed");
+
+    // socket.send(JSON.stringify(payload));
+    // queryClient.invalidateQueries({
+    //   queryKey: ["messages", payload.conversationId],
+    // });
+
     queryClient.invalidateQueries({
       queryKey: ["conversations"],
     });
+
+    return true;
   },
 }));
