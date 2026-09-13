@@ -2,6 +2,7 @@ import type { EmojiClickData } from "emoji-picker-react";
 import { motion } from "framer-motion";
 import {
   CameraIcon,
+  Check,
   FileText,
   Image as ImageIcon,
   Mic,
@@ -10,7 +11,9 @@ import {
   Send,
   Smile,
   Square,
+  Trash2,
   Video,
+  X,
   XIcon,
 } from "lucide-react";
 import { type ChangeEvent, useEffect, useRef, useState } from "react";
@@ -24,10 +27,20 @@ import {
   useSendVideo,
 } from "#/hooks/mutations/useSendMessage";
 import { queryClient } from "#/lib/query-client";
-import { useWebSocketStore } from "#/store/websocket.store";
+import {
+  useWebSocketStore,
+  type CachedMessages,
+} from "#/store/websocket.store";
 import { BottomSheet } from "./BottomSheet";
 import { EmojiPickerComponent } from "./EmojiPicker";
 import { Button } from "./Button";
+import type { ChatMessage } from "#/types";
+import { useAuthStore } from "#/store/auth.store";
+import type { ReplyToMessage } from "./MessageBubble";
+import { addPendingMessage } from "#/lib/offline/messageQueue";
+import { addOptimisticMediaMessage } from "#/utils/addPendingMedia";
+import { checkMediaOnline } from "#/utils/checkMediaOnline";
+// import { useSyncPendingMedia } from "#/hooks/useSyncPendingMedia";
 
 type MessageForm = {
   message: string;
@@ -55,6 +68,16 @@ type ChatInputProps = {
   recipientId: string;
   scrollToBottom: () => void;
   isAtBottom: boolean;
+
+  replyingTo: ChatMessage | null;
+
+  setReplyingTo: React.Dispatch<React.SetStateAction<ChatMessage | null>>;
+
+  editingMessage: ChatMessage | null;
+
+  setEditingMessage: React.Dispatch<React.SetStateAction<ChatMessage | null>>;
+
+  // setDeleteMessage: React.Dispatch<React.SetStateAction<ChatMessage | null>>;
 };
 
 export default function ChatInput({
@@ -69,6 +92,12 @@ export default function ChatInput({
   recipientId,
   scrollToBottom,
   isAtBottom,
+  editingMessage,
+  setEditingMessage,
+  replyingTo,
+  setReplyingTo,
+  // deleteMessage,
+  // setDeleteMessage,
 }: ChatInputProps) {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
@@ -87,7 +116,8 @@ export default function ChatInput({
   const videoStreamRef = useRef<MediaStream | null>(null);
   const discardVideoRef = useRef(false);
   const pickerRef = useRef<HTMLDivElement | null>(null);
-  const [messageType] = useState<MessageType>(MessageType.TEXT);
+  // const [messageType] = useState<MessageType>(MessageType.TEXT);
+
   // const newOrOldmessageId = conversationId ?? recipientId;
 
   const typing = useRef(false);
@@ -100,6 +130,8 @@ export default function ChatInput({
   const sendFileMutation = useSendFile();
 
   const { send } = useWebSocketStore();
+  const { user } = useAuthStore();
+  // const { syncPendingMedia } = useSyncPendingMedia();
 
   const refreshChatData = () => {
     void queryClient.invalidateQueries({ queryKey: ["messages"] });
@@ -112,6 +144,12 @@ export default function ChatInput({
         message: "",
       },
     });
+
+  useEffect(() => {
+    if (editingMessage) {
+      setValue("message", editingMessage.message);
+    }
+  }, [editingMessage, setValue]);
 
   useEffect(() => {
     const closePicker = (event: MouseEvent | TouchEvent) => {
@@ -146,36 +184,174 @@ export default function ChatInput({
     };
   }, []);
 
-  const onSubmit = ({ message }: MessageForm) => {
-    // scrollToBottom();
-    if (!message.trim()) return;
-    if (recipientId) {
-      queryClient.invalidateQueries({ queryKey: ["messages", recipientId] });
-    }
+  const onSubmit = async ({ message }: MessageForm) => {
+    const trimmedMessage = message.trim();
 
-    switch (messageType) {
-      case MessageType.TEXT:
-        send({
-          type: SocketEvent.NEW_MESSAGE,
-          conversationId,
-          messageType: MessageType.TEXT,
-          message,
-          isRead: false,
-          recipientId,
-        });
-        scrollToBottom();
-        break;
+    if (!trimmedMessage) return;
 
-      case MessageType.IMAGE:
-        // await uploadImage(file); // HTTP endpoint
-        break;
-
-      default:
-        console.warn("Unsupported message type");
+    // ----------------------------------------
+    // EDIT
+    // ----------------------------------------
+    if (editingMessage) {
+      if (editingMessage.id.startsWith("temp-")) {
         return;
+      }
+      send({
+        type: SocketEvent.EDIT_MESSAGE,
+        conversationId,
+        messageId: editingMessage.id,
+        message: trimmedMessage,
+        recipientId,
+      });
+
+      setEditingMessage(null);
+      reset();
+      return;
     }
-    stopTyping();
+
+    // ----------------------------------------
+    // CREATE OPTIMISTIC MESSAGE
+    // ----------------------------------------
+
+    const tempId = `temp-${crypto.randomUUID()}`;
+    const createdAt = new Date().toISOString();
+
+    const replyToMessageId =
+      replyingTo?.id && !replyingTo.id.startsWith("temp-")
+        ? replyingTo.id
+        : null;
+
+    const optimisticMessage: ChatMessage = {
+      id: tempId,
+      clientMessageId: tempId,
+      conversationId,
+      senderId: user?.id as string,
+
+      message: trimmedMessage,
+      messageType: MessageType.TEXT,
+
+      isRead: false,
+      readAt: null,
+
+      createdAt,
+      updatedAt: null,
+
+      isDeleted: false,
+      deletedAt: null,
+      editedAt: null,
+
+      attachmentUrl: null,
+      attachmentPublicId: null,
+      mimeType: null,
+      duration: null,
+
+      replyToMessageId,
+      replyTo: replyingTo ?? null,
+
+      reactions: [],
+
+      status: "sending",
+    };
+
+    // ----------------------------------------
+    // 1. UPDATE UI IMMEDIATELY
+    // ----------------------------------------
+
+    queryClient.setQueryData<CachedMessages>(
+      ["messages", conversationId],
+      (old) => {
+        // console.log("🟡 OPTIMISTIC UPDATE", {
+        //   conversationId,
+        //   old,
+        //   optimisticMessage,
+        // });
+
+        if (!old) {
+          return {
+            pages: [
+              {
+                messages: [optimisticMessage],
+                nextCursor: null,
+              },
+            ],
+            pageParams: [""],
+          };
+        }
+
+        const pages = [...old.pages];
+
+        // New messages belong to the newest page
+        const firstPage = pages[0];
+
+        pages[0] = {
+          ...firstPage,
+          messages: [...firstPage.messages, optimisticMessage],
+        };
+
+        return {
+          ...old,
+          pages,
+        };
+      },
+    );
+
+    // ----------------------------------------
+    // 2. SAVE TO OFFLINE OUTBOX
+    // ----------------------------------------
+
+    await addPendingMessage({
+      clientMessageId: tempId,
+      conversationId,
+
+      ...(recipientId && {
+        recipientId,
+      }),
+
+      message: trimmedMessage,
+      messageType: MessageType.TEXT,
+
+      replyToMessageId,
+
+      createdAt,
+    });
+
+    // ----------------------------------------
+    // 3. SEND IF ONLINE
+    // ----------------------------------------
+
+    const sent = send({
+      type: SocketEvent.NEW_MESSAGE,
+
+      conversationId,
+
+      messageType: MessageType.TEXT,
+
+      message: trimmedMessage,
+
+      ...(recipientId && {
+        recipientId,
+      }),
+
+      replyToMessageId,
+
+      clientMessageId: tempId,
+    });
+
+    if (!sent) {
+      console.log("📦 Message saved to offline outbox");
+    }
+
+    // ----------------------------------------
+    // 4. CLEAN UI
+    // ----------------------------------------
+
+    scrollToBottom();
+
+    setReplyingTo(null);
+
     reset();
+
+    stopTyping();
   };
 
   const handleEmojiClick = (emojiData: EmojiClickData) => {
@@ -226,8 +402,64 @@ export default function ChatInput({
     }, 2000);
   };
 
-  const handleSendAudio = () => {
+  const handleSendAudio = async () => {
+    if (!checkMediaOnline()) return;
     if (!audioBlob) return;
+
+    const clientMessageId = crypto.randomUUID();
+
+    // ============================================
+    // OPTIMISTIC MESSAGE — ONLINE + OFFLINE
+    // ============================================
+
+    addOptimisticMediaMessage(queryClient, {
+      clientMessageId,
+      conversationId,
+      senderId: user?.id as string,
+
+      messageType: MessageType.AUDIO,
+
+      file: audioBlob,
+      fileName: `audio-${clientMessageId}.webm`,
+      mimeType: audioBlob.type || "audio/webm",
+
+      duration: duration ?? null,
+      replyToMessageId: replyingTo?.id ?? null,
+    });
+
+    // ============================================
+    // OFFLINE
+    // ============================================
+
+    if (!navigator.onLine) {
+      await addPendingMessage({
+        clientMessageId,
+        conversationId,
+        ...(recipientId && { recipientId }),
+
+        message: null,
+        messageType: MessageType.AUDIO,
+
+        file: audioBlob,
+        fileName: `audio-${clientMessageId}.webm`,
+        mimeType: audioBlob.type || "audio/webm",
+
+        duration: duration ?? null,
+        replyToMessageId: replyingTo?.id ?? null,
+        createdAt: new Date().toISOString(),
+      });
+
+      console.log("AUDIO SAVED OFFLINE:", clientMessageId);
+
+      resetAudio();
+      scrollToBottom();
+
+      return;
+    }
+
+    // ============================================
+    // ONLINE
+    // ============================================
 
     const formData = new FormData();
     formData.append("audio", audioBlob);
@@ -239,6 +471,7 @@ export default function ChatInput({
     if (recipientId) {
       formData.append("recipientId", recipientId);
     }
+
     if (duration) {
       formData.append("duration", String(duration));
     }
@@ -346,8 +579,64 @@ export default function ChatInput({
     };
   }, []);
 
-  const handleSendVideoRecording = () => {
+  const handleSendVideoRecording = async () => {
+    if (!checkMediaOnline()) return;
     if (!videoBlob) return;
+
+    const clientMessageId = crypto.randomUUID();
+
+    // ============================================
+    // OPTIMISTIC MESSAGE — ONLINE + OFFLINE
+    // ============================================
+
+    addOptimisticMediaMessage(queryClient, {
+      clientMessageId,
+      conversationId,
+      senderId: user?.id as string,
+
+      messageType: MessageType.VIDEO,
+
+      file: videoBlob,
+      fileName: `video-${clientMessageId}.webm`,
+      mimeType: videoBlob.type || "video/webm",
+
+      duration: videoDuration,
+      replyToMessageId: replyingTo?.id ?? null,
+    });
+
+    // ============================================
+    // OFFLINE
+    // ============================================
+
+    if (!navigator.onLine) {
+      await addPendingMessage({
+        clientMessageId,
+        conversationId,
+        ...(recipientId && { recipientId }),
+
+        message: null,
+        messageType: MessageType.VIDEO,
+
+        file: videoBlob,
+        fileName: `video-${clientMessageId}.webm`,
+        mimeType: videoBlob.type || "video/webm",
+
+        duration: videoDuration,
+        replyToMessageId: replyingTo?.id ?? null,
+        createdAt: new Date().toISOString(),
+      });
+
+      console.log("VIDEO SAVED OFFLINE:", clientMessageId);
+
+      resetVideoRecording();
+      scrollToBottom();
+
+      return;
+    }
+
+    // ============================================
+    // ONLINE
+    // ============================================
 
     const formData = new FormData();
     formData.append("video", videoBlob);
@@ -359,7 +648,9 @@ export default function ChatInput({
     if (recipientId) {
       formData.append("recipientId", recipientId);
     }
+
     formData.append("duration", String(videoDuration));
+    formData.append("clientMessageId", clientMessageId);
 
     sendVideoMutation.mutate(formData, {
       onSuccess: () => {
@@ -412,10 +703,74 @@ export default function ChatInput({
     };
   };
 
-  const handleSendMedia = () => {
+  const handleSendMedia = async () => {
+    if (!checkMediaOnline()) return;
     if (!mediaDraft) return;
 
+    const clientMessageId = crypto.randomUUID();
+
+    const messageType =
+      mediaDraft.kind === "image"
+        ? MessageType.IMAGE
+        : mediaDraft.kind === "video"
+          ? MessageType.VIDEO
+          : MessageType.FILE;
+
+    // ============================================
+    // OPTIMISTIC MESSAGE — ONLINE + OFFLINE
+    // ============================================
+
+    addOptimisticMediaMessage(queryClient, {
+      clientMessageId,
+      conversationId,
+      senderId: user?.id as string,
+
+      messageType,
+
+      file: mediaDraft.file,
+      fileName: mediaDraft.file.name,
+      mimeType: mediaDraft.file.type,
+
+      duration: null,
+      replyToMessageId: replyingTo?.id ?? null,
+    });
+
+    // ============================================
+    // OFFLINE
+    // ============================================
+
+    if (!navigator.onLine) {
+      await addPendingMessage({
+        clientMessageId,
+        conversationId,
+        ...(recipientId && { recipientId }),
+
+        message: null,
+        messageType,
+
+        file: mediaDraft.file,
+        fileName: mediaDraft.file.name,
+        mimeType: mediaDraft.file.type,
+
+        duration: null,
+        replyToMessageId: replyingTo?.id ?? null,
+        createdAt: new Date().toISOString(),
+      });
+
+      console.log("MEDIA SAVED OFFLINE:", clientMessageId);
+
+      clearMediaDraft();
+      scrollToBottom();
+
+      return;
+    }
+
+    // ============================================
+    // ONLINE — EXISTING BEHAVIOR
+    // ============================================
+
     const formData = new FormData();
+
     formData.append(mediaDraft.kind, mediaDraft.file);
 
     if (conversationId) {
@@ -425,8 +780,6 @@ export default function ChatInput({
     if (recipientId) {
       formData.append("recipientId", recipientId);
     }
-
-    console.log(mediaDraft.kind, mediaDraft.file);
 
     const mediaMutation =
       mediaDraft.kind === "image"
@@ -449,8 +802,109 @@ export default function ChatInput({
     }
   }, [message]);
 
+  const getReplyPreview = (replyTo: ReplyToMessage) => {
+    if (replyTo.isDeleted) {
+      return "This message was deleted";
+    }
+
+    if (replyTo.message?.trim()) {
+      return replyTo.message;
+    }
+
+    switch (replyTo.messageType) {
+      case MessageType.IMAGE:
+        return "📷 Photo";
+
+      case MessageType.VIDEO:
+        return "🎥 Video";
+
+      case MessageType.AUDIO:
+        return "🎵 Audio";
+
+      case MessageType.FILE:
+        return "📎 Document";
+
+      default:
+        return "Message";
+    }
+  };
+
+  //Sync media
+  // useEffect(() => {
+  //   const handleOnline = () => {
+  //     syncPendingMedia();
+  //   };
+
+  //   window.addEventListener("online", handleOnline);
+
+  //   return () => {
+  //     window.removeEventListener("online", handleOnline);
+  //   };
+  // }, [syncPendingMedia]);
+
   return (
     <>
+      {replyingTo && (
+        <ReplyPreview>
+          <ReplyPreviewContent>
+            <ReplyPreviewTitle>
+              Replying to{" "}
+              {replyingTo.senderId === user?.id ? "yourself" : "message"}
+            </ReplyPreviewTitle>
+
+            <ReplyPreviewText>{getReplyPreview(replyingTo)}</ReplyPreviewText>
+          </ReplyPreviewContent>
+
+          <CloseReplyButton
+            type="button"
+            onClick={() => {
+              setReplyingTo(null);
+            }}
+            aria-label="Cancel reply"
+          >
+            <X size={18} />
+          </CloseReplyButton>
+        </ReplyPreview>
+      )}
+
+      {editingMessage && (
+        <EditBar>
+          <div>
+            <EditLabel>Editing message</EditLabel>
+            <EditPreview>{editingMessage.message}</EditPreview>
+          </div>
+
+          <EditActions>
+            <DeleteEdit
+              type="button"
+              aria-label="Delete message"
+              onClick={() => {
+                send({
+                  type: SocketEvent.DELETE_MESSAGE,
+                  conversationId: editingMessage.conversationId,
+                  messageId: editingMessage.id,
+                });
+
+                setEditingMessage(null);
+                reset();
+              }}
+            >
+              <Trash2 size={16} />
+            </DeleteEdit>
+
+            <CancelEdit
+              type="button"
+              aria-label="Cancel edit"
+              onClick={() => {
+                setEditingMessage(null);
+                reset();
+              }}
+            >
+              <XIcon size={16} />
+            </CancelEdit>
+          </EditActions>
+        </EditBar>
+      )}
       <Composer onSubmit={handleSubmit(onSubmit)}>
         {showEmojiPicker && (
           <EmojiPickerComponent
@@ -497,14 +951,14 @@ export default function ChatInput({
               <SendBtn
                 type="submit"
                 whileTap={{ scale: 0.92 }}
-                aria-label="Send"
+                aria-label={editingMessage ? "Save edit" : "Send"}
                 onClick={() => {
                   if (isAtBottom) {
                     scrollToBottom();
                   }
                 }}
               >
-                <Send size={18} />
+                {editingMessage ? <Check size={18} /> : <Send size={18} />}
               </SendBtn>
             ) : (
               <>
@@ -788,6 +1242,72 @@ export default function ChatInput({
     </>
   );
 }
+
+const EditActions = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 6px;
+`;
+
+const DeleteEdit = styled.button`
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 50%;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  cursor: pointer;
+
+  background: #fee2e2;
+  color: #ef4444;
+
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: #fecaca;
+  }
+
+  &:active {
+    transform: scale(0.92);
+  }
+`;
+
+const EditBar = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 12px;
+  margin-bottom: 6px;
+  border-left: 3px solid ${({ theme }) => theme.colors.primary};
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 8px;
+`;
+
+const EditLabel = styled.div`
+  font-size: 12px;
+  font-weight: 600;
+`;
+
+const EditPreview = styled.div`
+  font-size: 12px;
+  opacity: 0.65;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+`;
+
+const CancelEdit = styled.button`
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+`;
 
 const Composer = styled.form`
   flex-shrink: 0;
@@ -1091,4 +1611,67 @@ const SendRecBtn = styled(Button)`
 const VideoCancelBtn = styled(CancelBtn)`
   background: rgba(255, 255, 255, 0.14);
   color: #fff;
+`;
+
+const ReplyPreview = styled.div`
+  display: flex;
+  align-items: center;
+
+  gap: 10px;
+
+  padding: 8px 12px;
+
+  margin: 0 12px 6px;
+
+  border-left: 3px solid ${({ theme }) => theme.colors.primary};
+
+  background: rgba(255, 255, 255, 0.04);
+
+  border-radius: 8px;
+`;
+
+const ReplyPreviewContent = styled.div`
+  min-width: 0;
+  flex: 1;
+`;
+
+const ReplyPreviewTitle = styled.div`
+  font-size: 12px;
+  font-weight: 600;
+
+  color: ${({ theme }) => theme.colors.textTertiary};
+`;
+
+const ReplyPreviewText = styled.div`
+  margin-top: 2px;
+
+  font-size: 13px;
+
+  color: ${({ theme }) => theme.colors.textPrimary};
+
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+`;
+
+const CloseReplyButton = styled.button`
+  width: 30px;
+  height: 30px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border: none;
+  border-radius: 50%;
+
+  background: transparent;
+
+  color: ${({ theme }) => theme.colors.textSecondary};
+
+  cursor: pointer;
+
+  &:hover {
+    background: ${({ theme }) => theme.colors.background};
+  }
 `;
