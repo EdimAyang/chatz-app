@@ -38,7 +38,7 @@ import type { ChatMessage } from "#/types";
 import { useAuthStore } from "#/store/auth.store";
 import type { ReplyToMessage } from "./MessageBubble";
 import { addPendingMessage } from "#/lib/offline/messageQueue";
-import { addOptimisticMediaMessage } from "#/utils/addPendingMedia";
+// import { addOptimisticMediaMessage } from "#/utils/addPendingMedia";
 import { checkMediaOnline } from "#/utils/checkMediaOnline";
 // import { useSyncPendingMedia } from "#/hooks/useSyncPendingMedia";
 
@@ -406,56 +406,56 @@ export default function ChatInput({
     if (!checkMediaOnline()) return;
     if (!audioBlob) return;
 
-    const clientMessageId = crypto.randomUUID();
+    // const clientMessageId = crypto.randomUUID();
 
     // ============================================
     // OPTIMISTIC MESSAGE — ONLINE + OFFLINE
     // ============================================
 
-    addOptimisticMediaMessage(queryClient, {
-      clientMessageId,
-      conversationId,
-      senderId: user?.id as string,
+    // addOptimisticMediaMessage(queryClient, {
+    //   clientMessageId,
+    //   conversationId,
+    //   senderId: user?.id as string,
 
-      messageType: MessageType.AUDIO,
+    //   messageType: MessageType.AUDIO,
 
-      file: audioBlob,
-      fileName: `audio-${clientMessageId}.webm`,
-      mimeType: audioBlob.type || "audio/webm",
+    //   file: audioBlob,
+    //   fileName: `audio-${clientMessageId}.webm`,
+    //   mimeType: audioBlob.type || "audio/webm",
 
-      duration: duration ?? null,
-      replyToMessageId: replyingTo?.id ?? null,
-    });
+    //   duration: duration ?? null,
+    //   replyToMessageId: replyingTo?.id ?? null,
+    // });
 
     // ============================================
     // OFFLINE
     // ============================================
 
-    if (!navigator.onLine) {
-      await addPendingMessage({
-        clientMessageId,
-        conversationId,
-        ...(recipientId && { recipientId }),
+    // if (!navigator.onLine) {
+    //   await addPendingMessage({
+    //     clientMessageId,
+    //     conversationId,
+    //     ...(recipientId && { recipientId }),
 
-        message: null,
-        messageType: MessageType.AUDIO,
+    //     message: null,
+    //     messageType: MessageType.AUDIO,
 
-        file: audioBlob,
-        fileName: `audio-${clientMessageId}.webm`,
-        mimeType: audioBlob.type || "audio/webm",
+    //     file: audioBlob,
+    //     fileName: `audio-${clientMessageId}.webm`,
+    //     mimeType: audioBlob.type || "audio/webm",
 
-        duration: duration ?? null,
-        replyToMessageId: replyingTo?.id ?? null,
-        createdAt: new Date().toISOString(),
-      });
+    //     duration: duration ?? null,
+    //     replyToMessageId: replyingTo?.id ?? null,
+    //     createdAt: new Date().toISOString(),
+    //   });
 
-      console.log("AUDIO SAVED OFFLINE:", clientMessageId);
+    //   console.log("AUDIO SAVED OFFLINE:", clientMessageId);
 
-      resetAudio();
-      scrollToBottom();
+    //   resetAudio();
+    //   scrollToBottom();
 
-      return;
-    }
+    //   return;
+    // }
 
     // ============================================
     // ONLINE
@@ -583,56 +583,56 @@ export default function ChatInput({
     if (!checkMediaOnline()) return;
     if (!videoBlob) return;
 
-    const clientMessageId = crypto.randomUUID();
+    // const clientMessageId = crypto.randomUUID();
 
     // ============================================
     // OPTIMISTIC MESSAGE — ONLINE + OFFLINE
     // ============================================
 
-    addOptimisticMediaMessage(queryClient, {
-      clientMessageId,
-      conversationId,
-      senderId: user?.id as string,
+    // addOptimisticMediaMessage(queryClient, {
+    //   clientMessageId,
+    //   conversationId,
+    //   senderId: user?.id as string,
 
-      messageType: MessageType.VIDEO,
+    //   messageType: MessageType.VIDEO,
 
-      file: videoBlob,
-      fileName: `video-${clientMessageId}.webm`,
-      mimeType: videoBlob.type || "video/webm",
+    //   file: videoBlob,
+    //   fileName: `video-${clientMessageId}.webm`,
+    //   mimeType: videoBlob.type || "video/webm",
 
-      duration: videoDuration,
-      replyToMessageId: replyingTo?.id ?? null,
-    });
+    //   duration: videoDuration,
+    //   replyToMessageId: replyingTo?.id ?? null,
+    // });
 
     // ============================================
     // OFFLINE
     // ============================================
 
-    if (!navigator.onLine) {
-      await addPendingMessage({
-        clientMessageId,
-        conversationId,
-        ...(recipientId && { recipientId }),
+    // if (!navigator.onLine) {
+    //   await addPendingMessage({
+    //     clientMessageId,
+    //     conversationId,
+    //     ...(recipientId && { recipientId }),
 
-        message: null,
-        messageType: MessageType.VIDEO,
+    //     message: null,
+    //     messageType: MessageType.VIDEO,
 
-        file: videoBlob,
-        fileName: `video-${clientMessageId}.webm`,
-        mimeType: videoBlob.type || "video/webm",
+    //     file: videoBlob,
+    //     fileName: `video-${clientMessageId}.webm`,
+    //     mimeType: videoBlob.type || "video/webm",
 
-        duration: videoDuration,
-        replyToMessageId: replyingTo?.id ?? null,
-        createdAt: new Date().toISOString(),
-      });
+    //     duration: videoDuration,
+    //     replyToMessageId: replyingTo?.id ?? null,
+    //     createdAt: new Date().toISOString(),
+    //   });
 
-      console.log("VIDEO SAVED OFFLINE:", clientMessageId);
+    //   console.log("VIDEO SAVED OFFLINE:", clientMessageId);
 
-      resetVideoRecording();
-      scrollToBottom();
+    //   resetVideoRecording();
+    //   scrollToBottom();
 
-      return;
-    }
+    //   return;
+    // }
 
     // ============================================
     // ONLINE
@@ -650,7 +650,7 @@ export default function ChatInput({
     }
 
     formData.append("duration", String(videoDuration));
-    formData.append("clientMessageId", clientMessageId);
+    // formData.append("clientMessageId", clientMessageId);
 
     sendVideoMutation.mutate(formData, {
       onSuccess: () => {
@@ -707,63 +707,63 @@ export default function ChatInput({
     if (!checkMediaOnline()) return;
     if (!mediaDraft) return;
 
-    const clientMessageId = crypto.randomUUID();
+    // const clientMessageId = crypto.randomUUID();
 
-    const messageType =
-      mediaDraft.kind === "image"
-        ? MessageType.IMAGE
-        : mediaDraft.kind === "video"
-          ? MessageType.VIDEO
-          : MessageType.FILE;
+    // const messageType =
+    //   mediaDraft.kind === "image"
+    //     ? MessageType.IMAGE
+    //     : mediaDraft.kind === "video"
+    //       ? MessageType.VIDEO
+    //       : MessageType.FILE;
 
     // ============================================
     // OPTIMISTIC MESSAGE — ONLINE + OFFLINE
     // ============================================
 
-    addOptimisticMediaMessage(queryClient, {
-      clientMessageId,
-      conversationId,
-      senderId: user?.id as string,
+    // addOptimisticMediaMessage(queryClient, {
+    //   clientMessageId,
+    //   conversationId,
+    //   senderId: user?.id as string,
 
-      messageType,
+    //   messageType,
 
-      file: mediaDraft.file,
-      fileName: mediaDraft.file.name,
-      mimeType: mediaDraft.file.type,
+    //   file: mediaDraft.file,
+    //   fileName: mediaDraft.file.name,
+    //   mimeType: mediaDraft.file.type,
 
-      duration: null,
-      replyToMessageId: replyingTo?.id ?? null,
-    });
+    //   duration: null,
+    //   replyToMessageId: replyingTo?.id ?? null,
+    // });
 
     // ============================================
     // OFFLINE
     // ============================================
 
-    if (!navigator.onLine) {
-      await addPendingMessage({
-        clientMessageId,
-        conversationId,
-        ...(recipientId && { recipientId }),
+    // if (!navigator.onLine) {
+    //   await addPendingMessage({
+    //     clientMessageId,
+    //     conversationId,
+    //     ...(recipientId && { recipientId }),
 
-        message: null,
-        messageType,
+    //     message: null,
+    //     messageType,
 
-        file: mediaDraft.file,
-        fileName: mediaDraft.file.name,
-        mimeType: mediaDraft.file.type,
+    //     file: mediaDraft.file,
+    //     fileName: mediaDraft.file.name,
+    //     mimeType: mediaDraft.file.type,
 
-        duration: null,
-        replyToMessageId: replyingTo?.id ?? null,
-        createdAt: new Date().toISOString(),
-      });
+    //     duration: null,
+    //     replyToMessageId: replyingTo?.id ?? null,
+    //     createdAt: new Date().toISOString(),
+    //   });
 
-      console.log("MEDIA SAVED OFFLINE:", clientMessageId);
+    //   console.log("MEDIA SAVED OFFLINE:", clientMessageId);
 
-      clearMediaDraft();
-      scrollToBottom();
+    //   clearMediaDraft();
+    //   scrollToBottom();
 
-      return;
-    }
+    //   return;
+    // }
 
     // ============================================
     // ONLINE — EXISTING BEHAVIOR

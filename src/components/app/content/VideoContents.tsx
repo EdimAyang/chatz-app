@@ -1,8 +1,16 @@
 import styled from "styled-components";
 import { StatusIcon } from "../MessageBubble";
-import { AlertCircle, Check, CheckCheck, Clock, VideoOff, X } from "lucide-react";
+import {
+  AlertCircle,
+  Check,
+  CheckCheck,
+  Clock,
+  VideoOff,
+  X,
+} from "lucide-react";
 import type { MessageStatus } from "#/types";
-import type { Dispatch, SetStateAction } from "react";
+import { type Dispatch, type SetStateAction } from "react";
+
 
 interface VideoContentProps {
   src: string;
@@ -13,7 +21,7 @@ interface VideoContentProps {
   isDeleted?: boolean;
   deleteTime: string;
   onViewVideo: () => void;
-  viewingVideo:boolean;
+  viewingVideo: boolean;
   setViewingVideo: Dispatch<SetStateAction<boolean>>;
 }
 
@@ -29,6 +37,12 @@ export const VideoContent = ({
   viewingVideo,
   setViewingVideo,
 }: VideoContentProps) => {
+
+  const handleVideoPointerDown = (
+    event: React.PointerEvent<HTMLDivElement>,
+  ) => {
+    event.stopPropagation();
+  };
   return (
     <>
       {viewingVideo && (
@@ -50,7 +64,18 @@ export const VideoContent = ({
           </CloseVideoButton>
         </VideoViewer>
       )}
-      <VideoContentWrapper $mine={mine} $deleted={!!isDeleted}>
+      <VideoContentWrapper
+        $mine={mine}
+        $deleted={!!isDeleted}
+        onPointerDownCapture={(event) => {
+          event.stopPropagation();
+        }}
+        onPointerDown={handleVideoPointerDown}
+        onClick={(event) => {
+          event.stopPropagation();
+          onViewVideo?.();
+        }}
+      >
         {" "}
         {!isDeleted ? (
           <>
@@ -59,7 +84,8 @@ export const VideoContent = ({
               controls
               src={src}
               playsInline
-              onClick={onViewVideo}
+              muted
+              preload="metadata"
             />{" "}
             <MediaMetaOverlay>
               {" "}
@@ -98,7 +124,6 @@ export const VideoContent = ({
     </>
   );
 };
-
 
 const VideoViewer = styled.div`
   position: fixed;
