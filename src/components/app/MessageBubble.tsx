@@ -506,9 +506,7 @@ const ReplyPreview = styled.div<{ $mine: boolean }>`
   border-radius: 8px;
 
   background: ${({ $mine }) =>
-    $mine
-      ? "rgba(255,255,255,0.12)"
-      : "rgba(0,0,0,0.05)"};
+    $mine ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.05)"};
 `;
 
 const ReplyPreviewBar = styled.div`
@@ -640,8 +638,6 @@ export function MessageBubble({
 
   const reactionOptions = ["❤️", "😂", "😮", "😢", "😡", "👍"];
 
-
-
   const { send } = useWebSocketStore();
 
   const groupedReactions = Object.entries(
@@ -655,7 +651,6 @@ export function MessageBubble({
   const clearLongPress = () => {
     if (longPressTimer.current) {
       clearTimeout(longPressTimer.current);
-
       longPressTimer.current = null;
     }
   };
@@ -675,8 +670,9 @@ export function MessageBubble({
       hasLongPressedRef.current = true;
 
       setShowMobileActions(true);
-
       setShowReactionPicker(false);
+
+      longPressTimer.current = null;
     }, 500);
   };
 
@@ -688,6 +684,31 @@ export function MessageBubble({
     clearLongPress();
 
     setIsSwiping(false);
+    pointerTypeRef.current = null;
+  };
+
+  const handleDrag = (
+    _: MouseEvent | TouchEvent | PointerEvent,
+    info: PanInfo,
+  ) => {
+    // If the finger actually starts moving horizontally,
+    // this is a swipe, not a long press.
+    if (
+      pointerTypeRef.current === "touch" &&
+      Math.abs(info.offset.x) > 10 &&
+      !hasLongPressedRef.current
+    ) {
+      clearLongPress();
+    }
+  };
+
+  const handleDragStart = () => {
+    // DO NOT clearLongPress() here.
+    //
+    // Framer Motion can start a drag because of a tiny
+    // movement before the 500ms long press finishes.
+
+    setIsSwiping(true);
   };
 
   const handleDragEnd = (
@@ -698,8 +719,8 @@ export function MessageBubble({
 
     if (hasLongPressedRef.current) {
       hasLongPressedRef.current = false;
-
       setIsSwiping(false);
+      pointerTypeRef.current = null;
 
       return;
     }
@@ -709,7 +730,6 @@ export function MessageBubble({
     }
 
     setIsSwiping(false);
-
     pointerTypeRef.current = null;
   };
 
@@ -736,11 +756,8 @@ export function MessageBubble({
         }}
         dragElastic={0.25}
         dragDirectionLock
-        onDragStart={() => {
-          clearLongPress();
-
-          setIsSwiping(true);
-        }}
+        onDragStart={handleDragStart}
+        onDrag={handleDrag}
         onDragEnd={handleDragEnd}
       >
         {/* REACTION PICKER */}
@@ -842,7 +859,7 @@ export function MessageBubble({
             </ActionButton>
           )}
 
-          {mine && !message.isDeleted &&(
+          {mine && !message.isDeleted && (
             <DeleteAction
               type="button"
               aria-label="Delete message"
@@ -863,7 +880,7 @@ export function MessageBubble({
                 closeActions();
               }}
             >
-               <Trash2 size={17} />
+              <Trash2 size={17} />
             </DeleteAction>
           )}
         </ActionButtons>
