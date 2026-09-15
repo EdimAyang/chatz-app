@@ -42,15 +42,18 @@ export const TextContent = ({
 
         {mine && !isDeleted && (
           <StatusIcon $mine={mine} $read={isRead}>
+            {" "}
             {status === "failed" ? (
               <AlertCircle size={12} />
             ) : status === "sending" ? (
               <Clock size={12} />
-            ) : status === "read" ? (
+            ) : isRead ? (
               <CheckCheck size={12} />
+            ) : status === "sent" ? (
+              <Check size={12} />
             ) : (
               <Check size={12} />
-            )}
+            )}{" "}
           </StatusIcon>
         )}
       </TextMeta>

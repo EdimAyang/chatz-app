@@ -84,7 +84,7 @@ const DesktopSidebar = styled.aside<{
   flex-shrink: 0;
   overflow: hidden;
 
-  width: ${({ $collapsed }) => ($collapsed ? "144px" : "392px")};
+  width: ${({ $collapsed }) => ($collapsed ? "72px" : "392px")};
 
   transition: width 0.25s ease;
 
@@ -95,7 +95,7 @@ const DesktopSidebar = styled.aside<{
    * Total: 392px
    */
   @media (min-width: 768px) and (max-width: 1023px) {
-    width: ${({ $collapsed }) => ($collapsed ? "144px" : "392px")};
+    width: ${({ $collapsed }) => ($collapsed ? "72px" : "392px")};
   }
 
   /*
@@ -105,14 +105,14 @@ const DesktopSidebar = styled.aside<{
    * Total: 372px
    */
   @media (min-width: 1024px) and (max-width: 1439px) {
-    width: ${({ $collapsed }) => ($collapsed ? "144px" : "372px")};
+    width: ${({ $collapsed }) => ($collapsed ? "72px" : "372px")};
   }
 
   /*
    * LARGE DESKTOP
    */
   @media (min-width: 1440px) {
-    width: ${({ $collapsed }) => ($collapsed ? "144px" : "420px")};
+    width: ${({ $collapsed }) => ($collapsed ? "72px" : "420px")};
   }
 
   /*

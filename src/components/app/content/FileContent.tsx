@@ -66,15 +66,17 @@ export const FileContent = ({
             {mine && (
               <StatusIcon $mine={mine} $read={isRead}>
                 {" "}
-                {status === "failed" ? (
-                  <AlertCircle size={12} />
-                ) : status === "sending" ? (
-                  <Clock size={12} />
-                ) : status === "read" ? (
-                  <CheckCheck size={12} />
-                ) : (
-                  <Check size={12} />
-                )}{" "}
+                  {status === "failed" ? (
+                    <AlertCircle size={12} />
+                  ) : status === "sending" ? (
+                    <Clock size={12} />
+                  ) : isRead ? (
+                    <CheckCheck size={12} />
+                  ) : status === "sent" ? (
+                    <Check size={12} />
+                  ) : (
+                    <Check size={12} />
+                  )}{" "}
               </StatusIcon>
             )}{" "}
           </FileMetaRow>{" "}

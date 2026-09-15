@@ -207,21 +207,23 @@ export const AudioContent = ({
 
       {mine && (
         <StatusIcon $mine={mine} $read={isRead}>
+          {" "}
           {status === "failed" ? (
             <AlertCircle size={12} />
           ) : status === "sending" ? (
             <Clock size={12} />
-          ) : status === "read" ? (
+          ) : isRead ? (
             <CheckCheck size={12} />
+          ) : status === "sent" ? (
+            <Check size={12} />
           ) : (
             <Check size={12} />
-          )}
+          )}{" "}
         </StatusIcon>
       )}
     </AudioContentWrapper>
   );
 };
-
 
 const DeletedAudio = styled.div`
   display: flex;
@@ -243,14 +245,10 @@ const DeletedAudioIcon = styled.div<{ $mine: boolean }>`
   border-radius: 50%;
 
   background: ${({ $mine }) =>
-    $mine
-      ? "rgba(255, 255, 255, 0.16)"
-      : "rgba(0, 0, 0, 0.07)"};
+    $mine ? "rgba(255, 255, 255, 0.16)" : "rgba(0, 0, 0, 0.07)"};
 
   color: ${({ $mine, theme }) =>
-    $mine
-      ? "rgba(255, 255, 255, 0.85)"
-      : theme.colors.textSecondary};
+    $mine ? "rgba(255, 255, 255, 0.85)" : theme.colors.textSecondary};
 `;
 
 const DeletedAudioInfo = styled.div`
@@ -264,9 +262,7 @@ const DeletedAudioTitle = styled.div<{ $mine: boolean }>`
   font-style: italic;
 
   color: ${({ $mine, theme }) =>
-    $mine
-      ? "rgba(255, 255, 255, 0.9)"
-      : theme.colors.textSecondary};
+    $mine ? "rgba(255, 255, 255, 0.9)" : theme.colors.textSecondary};
 `;
 
 const DeletedAudioTime = styled.div<{ $mine: boolean }>`
@@ -276,13 +272,10 @@ const DeletedAudioTime = styled.div<{ $mine: boolean }>`
   line-height: 1.2;
 
   color: ${({ $mine, theme }) =>
-    $mine
-      ? "rgba(255, 255, 255, 0.65)"
-      : theme.colors.textSecondary};
+    $mine ? "rgba(255, 255, 255, 0.65)" : theme.colors.textSecondary};
 
   opacity: 0.8;
 `;
-
 
 const pulse = keyframes`
   0%,

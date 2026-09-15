@@ -842,6 +842,13 @@ export default function ChatInput({
   //   };
   // }, [syncPendingMedia]);
 
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault();
+     void handleSubmit(onSubmit)();
+    }
+  };
+
   return (
     <>
       {replyingTo && (
@@ -935,6 +942,7 @@ export default function ChatInput({
 
             <TextArea
               placeholder="Message"
+              onKeyDown={handleKeyDown}
               rows={1}
               {...register("message")}
               onInput={(e) => {

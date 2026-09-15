@@ -526,7 +526,7 @@ const ReplyPreviewSender = styled.div`
 
   font-weight: 700;
 
-  color: ${({ theme }) => theme.colors.primary};
+  color: ${({ theme }) => theme.colors.textPrimary};
 `;
 
 const ReplyPreviewText = styled.div`
