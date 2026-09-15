@@ -51,28 +51,73 @@ const Layout = styled.div`
   }
 `;
 
+// const DesktopSidebar = styled.aside<{
+//   $collapsed: boolean;
+// }>`
+//   width: ${({ $collapsed }) => ($collapsed ? "160px" : "380px")};
+
+//   flex-shrink: 0;
+//   overflow: hidden;
+
+//   transition: width 0.25s ease;
+
+//   @media (min-width: 768px) and (max-width: 1023px) {
+//     width: ${({ $collapsed }) => ($collapsed ? "160px" : "320px")};
+//   }
+
+//   @media (min-width: 1024px) and (max-width: 1439px) {
+//     width: ${({ $collapsed }) => ($collapsed ? "160px" : "360px")};
+//   }
+
+//   @media (min-width: 1440px) {
+//     width: ${({ $collapsed }) => ($collapsed ? "150px" : "420px")};
+//   }
+
+//   @media (max-width: 767px) {
+//     display: none;
+//   }
+// `;
+
 const DesktopSidebar = styled.aside<{
   $collapsed: boolean;
 }>`
-  width: ${({ $collapsed }) => ($collapsed ? "160px" : "380px")};
-
   flex-shrink: 0;
   overflow: hidden;
 
+  width: ${({ $collapsed }) => ($collapsed ? "144px" : "392px")};
+
   transition: width 0.25s ease;
 
+  /*
+   * TABLET
+   * NavigationRail: 72px
+   * ConversationSidebar: 320px
+   * Total: 392px
+   */
   @media (min-width: 768px) and (max-width: 1023px) {
-    width: ${({ $collapsed }) => ($collapsed ? "160px" : "320px")};
+    width: ${({ $collapsed }) => ($collapsed ? "144px" : "392px")};
   }
 
+  /*
+   * SMALL DESKTOP
+   * NavigationRail: 72px
+   * ConversationSidebar: 300px
+   * Total: 372px
+   */
   @media (min-width: 1024px) and (max-width: 1439px) {
-    width: ${({ $collapsed }) => ($collapsed ? "160px" : "360px")};
+    width: ${({ $collapsed }) => ($collapsed ? "144px" : "372px")};
   }
 
+  /*
+   * LARGE DESKTOP
+   */
   @media (min-width: 1440px) {
-    width: ${({ $collapsed }) => ($collapsed ? "150px" : "420px")};
+    width: ${({ $collapsed }) => ($collapsed ? "144px" : "420px")};
   }
 
+  /*
+   * PHONE
+   */
   @media (max-width: 767px) {
     display: none;
   }
@@ -81,20 +126,22 @@ const DesktopSidebar = styled.aside<{
 const MainContent = styled.main`
   flex: 1;
   min-width: 0;
+  min-height: 0;
   height: 100%;
-  // overflow: auto;
-  overflow-x: hidden;
-  padding-inline: 10px;
+
   display: flex;
   flex-direction: column;
+
+  overflow: hidden;
+
+  padding: 0;
+
   -webkit-overflow-scrolling: touch;
 
   @media (max-width: 767px) {
     width: 100%;
-    padding-inline: 10px;
     height: 100dvh;
     min-height: 0;
-    overflow: hidden;
   }
 `;
 

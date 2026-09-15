@@ -1,7 +1,6 @@
 import { useCallback, useRef, useState } from "react";
 // import type { Message } from "@/types";
 
-
 export const useNewMsgTrigger = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -13,22 +12,23 @@ export const useNewMsgTrigger = () => {
 
     if (!el) return;
 
-    const atBottom =
-      el.scrollHeight - el.scrollTop - el.clientHeight < 90;
+    const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 90;
 
     setIsAtBottom(atBottom);
+  }, []);
+
+  const scrollToBottomInstant = useCallback(() => {
+    const el = containerRef.current;
+
+    if (!el) return;
+
+    el.scrollTop = el.scrollHeight;
   }, []);
 
   const scrollToBottom = useCallback(() => {
     const el = containerRef.current;
 
-    if (!el) {
-      bottomRef.current?.scrollIntoView({
-        behavior: "smooth",
-        block: "end",
-      });
-      return;
-    }
+    if (!el) return;
 
     requestAnimationFrame(() => {
       el.scrollTo({
@@ -44,5 +44,6 @@ export const useNewMsgTrigger = () => {
     handleScroll,
     bottomRef,
     containerRef,
+    scrollToBottomInstant,
   };
 };

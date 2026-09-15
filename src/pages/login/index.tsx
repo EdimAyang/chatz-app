@@ -124,7 +124,9 @@ const Login = () => {
             error={errors.password?.message}
           />
           <Row>
-            <TextLink to={PATHS.AUTH.FORGOT_PASSWORD}>Forgot password?</TextLink>
+            <TextLink to={PATHS.AUTH.FORGOT_PASSWORD}>
+              Forgot password?
+            </TextLink>
           </Row>
           <Button full isLoading={login.isPending}>
             Log In
@@ -153,7 +155,8 @@ const Login = () => {
           Continue with Google
         </Google> */}
         <Footer>
-          Don't have an account? <TextLink to="/register">Sign up</TextLink>
+          <TextLink to="/register">Sign up</TextLink> if you don't have an
+          account
         </Footer>
       </Wrap>
     </MobileFrame>

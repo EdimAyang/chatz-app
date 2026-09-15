@@ -1,5 +1,12 @@
 import { ArrowLeft, ChevronDown, Wifi } from "lucide-react";
-import { Fragment, useCallback, useMemo, useRef, useState } from "react";
+import {
+  Fragment,
+  useCallback,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { createPortal } from "react-dom";
 import styled, { keyframes } from "styled-components";
 import { Avatar } from "@/components/app/Avatar";
@@ -112,38 +119,28 @@ export default function ChatPage({
   const isTyping =
     typingKey === conversationId && typingUserId !== profile?.data.id;
 
-    console.log(
-  "PAGE ORDER",
-  data?.pages.map((page, index) => ({
-    page: index,
-    first: page.messages[0]?.createdAt,
-    last: page.messages[page.messages.length - 1]?.createdAt,
-  })),
-);
+  //     console.log(
+  //   "PAGE ORDER",
+  //   data?.pages.map((page, index) => ({
+  //     page: index,
+  //     first: page.messages[0]?.createdAt,
+  //     last: page.messages[page.messages.length - 1]?.createdAt,
+  //   })),
+  // );
 
-const ourMessages = useMemo(() => {
-  return (
-    data?.pages
-      .slice()
-      .reverse()
-      .flatMap((page) =>
-        page.messages.map((message) => ({
-          ...message,
-          status: message.status ?? ("sent" as MessageStatus),
-        })),
-      ) ?? []
-  );
-}, [data]);
-
-console.log(
-  "OUR MESSAGE ORDER",
-  ourMessages.map((m) => ({
-    id: m.id,
-    type: m.messageType,
-    createdAt: m.createdAt,
-  })),
-);
-
+  const ourMessages = useMemo(() => {
+    return (
+      data?.pages
+        .slice()
+        .reverse()
+        .flatMap((page) =>
+          page.messages.map((message) => ({
+            ...message,
+            status: message.status ?? ("sent" as MessageStatus),
+          })),
+        ) ?? []
+    );
+  }, [data]);
 
   const markedReadRef = useRef<Set<string>>(new Set());
 
@@ -178,6 +175,7 @@ console.log(
     handleScroll: handleBottomScroll,
     bottomRef,
     containerRef,
+    scrollToBottomInstant,
   } = useNewMsgTrigger();
 
   const RecipientAvatar = firstPage?.recipient?.user?.avatarUrl ?? "";
@@ -185,13 +183,19 @@ console.log(
   const RecipientLastSeen = firstPage?.recipient?.user?.lastSeen ?? "";
   const RecipientIsOnline = firstPage?.recipient?.user?.isOnline ?? false;
 
-  useEffect(() => {
-    scrollToBottom();
+  useLayoutEffect(() => {
+    if (!conversationId || ourMessages.length === 0) return;
+
+    const el = containerRef.current;
+
+    if (!el) return;
+
+    el.scrollTop = el.scrollHeight;
   }, []);
 
   useEffect(() => {
     if (isAtBottom && isTyping) {
-      scrollToBottom();
+      scrollToBottomInstant();
     }
   }, [ourMessages, isTyping, isAtBottom]);
 
@@ -297,7 +301,6 @@ console.log(
                       status={m.status}
                       message={m}
                       mine={m.senderId === profile?.data.id}
-                  
                       onEdit={(message) => {
                         if (message.id.startsWith("temp-")) {
                           return;

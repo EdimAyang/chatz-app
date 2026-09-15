@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import type { MessageStatus } from "#/types";
 import { type Dispatch, type SetStateAction } from "react";
+import { MessageContentWidth } from "./FileContent";
 
 
 interface VideoContentProps {
@@ -209,8 +210,10 @@ const CloseVideoButton = styled.button`
 `;
 
 const VideoContentWrapper = styled.div<{ $mine: boolean; $deleted: boolean }>`
+  ${MessageContentWidth}
   position: relative;
-  width: min(65vw, 320px);
+  // width: min(65vw, 320px);
+  //  width:100%;
   overflow: hidden;
   border-radius: 15px;
   background: ${({ $mine, theme }) =>

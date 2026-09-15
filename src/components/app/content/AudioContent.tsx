@@ -11,6 +11,7 @@ import {
   Play,
 } from "lucide-react";
 import type { MessageStatus } from "#/types";
+import { MessageContentWidth } from "./FileContent";
 
 interface AudioContentProps {
   mine: boolean;
@@ -295,12 +296,14 @@ const pulse = keyframes`
 `;
 
 const AudioContentWrapper = styled.div<{ $mine: boolean }>`
+  ${MessageContentWidth}
   position: relative;
   display: flex;
   align-items: center;
-  gap: 9px;
-  width: min(65vw, 320px);
-  min-height: 58px;
+  gap: 10px;
+  // width: min(65vw, 320px);
+  //  width:100%;
+  // min-height: 58px;
   padding: 8px 10px 18px;
   color: ${({ $mine, theme }) => ($mine ? "#fff" : theme.colors.textPrimary)};
 `;

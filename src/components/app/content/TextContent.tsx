@@ -2,6 +2,7 @@ import styled from "styled-components";
 import { StatusIcon } from "../MessageBubble";
 import { AlertCircle, Check, CheckCheck, Clock } from "lucide-react";
 import type { MessageStatus } from "#/types";
+import { MessageContentWidth } from "./FileContent";
 
 interface TextContentProps {
   message: string;
@@ -24,9 +25,8 @@ export const TextContent = ({
   isEdited,
   editedTime,
   status,
-  deletedTime
+  deletedTime,
 }: TextContentProps) => {
-   
   return (
     <TextBubble $mine={mine} $deleted={isDeleted}>
       <TextMessage $deleted={isDeleted} $mine={mine}>
@@ -34,15 +34,11 @@ export const TextContent = ({
       </TextMessage>
 
       <TextMeta>
-        {isEdited  && (
-          <EditedLabel>edited {editedTime}</EditedLabel>
-        )}
+        {isEdited && <EditedLabel>edited {editedTime}</EditedLabel>}
 
-         {isDeleted && (
-          <EditedLabel>deleted {deletedTime}</EditedLabel>
-        )}
+        {isDeleted && <EditedLabel>deleted {deletedTime}</EditedLabel>}
 
-      {!isEdited && !isDeleted &&  <Time $mine={mine}>{time}</Time>}
+        {!isEdited && !isDeleted && <Time $mine={mine}>{time}</Time>}
 
         {mine && !isDeleted && (
           <StatusIcon $mine={mine} $read={isRead}>
@@ -74,7 +70,9 @@ const TextBubble = styled.div<{
   $mine: boolean;
   $deleted: boolean;
 }>`
+  ${MessageContentWidth}
   //   max-width: min(100%, 320px);
+  // width:100%;
 
   padding: 5px 5px;
   border-radius: 18px;
@@ -115,4 +113,3 @@ export const EditedLabel = styled.span`
   font-size: 10px;
   opacity: 0.7;
 `;
-
