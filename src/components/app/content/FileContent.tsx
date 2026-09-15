@@ -96,13 +96,33 @@ export const FileContent = ({
     </FileContentWrapper>
   );
 };
+
+export const MessageContentWidth = `
+  width: fit-content;
+  max-width: min(420px, 75vw);
+  box-sizing: border-box;
+
+  @media (max-width: 480px) {
+    max-width: 82vw;
+  }
+
+  @media (min-width: 481px) and (max-width: 1023px) {
+    max-width: 55vw;
+  }
+
+  @media (min-width: 1024px) {
+    max-width: 420px;
+  }
+`;
 const FileContentWrapper = styled.a<{ $mine: boolean; $deleted: boolean }>`
+  ${MessageContentWidth}
   position: relative;
   display: flex;
   align-items: center;
-  gap: 10px;
-  width: min(65vw, 320px);
-  min-height: 64px;
+  gap: 30px;
+  // max-width: 300px;
+  // width: 100%;
+  // min-height: 64px;
   padding: 10px 12px;
   color: ${({ $mine, theme }) => ($mine ? "#fff" : theme.colors.textPrimary)};
   text-decoration: none;

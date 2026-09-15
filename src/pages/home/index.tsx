@@ -235,7 +235,7 @@ const Head = styled.header`
   top: 0;
   left: 0;
   height: auto;
-  padding-block: 10px;
+  padding: 10px;
   background: ${({ theme }) => theme.colors.background};
   padding-bottom: 4rem;
 `;

@@ -107,12 +107,11 @@ const Register = () => {
           </Button>
         </Form>
         <Footer>
-          Already have an account? <TextLink to="/login">Log in</TextLink>
+          <TextLink to="/login">Log in</TextLink> if you already have an account
         </Footer>
       </Wrap>
     </MobileFrame>
   );
 };
 
-
-export default Register
+export default Register;

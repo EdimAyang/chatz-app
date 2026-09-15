@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import type { MessageStatus } from "#/types";
 import type { Dispatch, SetStateAction } from "react";
+import { MessageContentWidth } from "./FileContent";
 
 interface ImageContentProps {
   src: string;
@@ -186,15 +187,16 @@ const CloseImageButton = styled.button`
   }
 `;
 
+
 const ImageContentWrapper = styled.div<{ $mine: boolean; $deleted: boolean }>`
   position: relative;
-  width: min(65vw, 300px);
+  ${MessageContentWidth}
+  // width: min(65vw, 300px);
+  //  width:100%;
   overflow: hidden;
   border-radius: 15px;
   color: ${({ $mine }) =>
-  $mine
-    ? "rgba(255, 255, 255, 0.88)"
-    : "rgba(60, 60, 60, 0.78)"};
+    $mine ? "rgba(255, 255, 255, 0.88)" : "rgba(60, 60, 60, 0.78)"};
   background: ${({ $mine, theme }) =>
     $mine ? theme.colors.bubbleOutgoing : theme.colors.bubbleIncoming};
   opacity: ${({ $deleted }) => ($deleted ? 0.75 : 1)};

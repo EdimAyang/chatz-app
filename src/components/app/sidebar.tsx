@@ -123,6 +123,7 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
         </RailBottom>
       </NavigationRail>
 
+
       {/* CONVERSATION SIDEBAR */}
       <ConversationSidebar $collapsed={collapsed}>
         <Header>
@@ -372,16 +373,45 @@ const LogoText = styled.span`
 //   }
 // `;
 
+// const ConversationSidebar = styled.section<{
+//   $collapsed: boolean;
+// }>`
+//   height: 100%;
+
+//   width: ${({ $collapsed }) => ($collapsed ? "82px" : "300px")};
+
+//   max-width: ${({ $collapsed }) => ($collapsed ? "82px" : "300px")};
+
+//   min-width: ${({ $collapsed }) => ($collapsed ? "82px" : "300px")};
+
+//   display: flex;
+//   flex-direction: column;
+
+//   background: ${({ theme }) => theme.colors.background};
+
+//   border-right: 1px solid ${({ theme }) => theme.colors.border};
+
+//   transition: width 0.25s ease;
+
+//   overflow: hidden;
+
+//   flex-shrink: 0;
+
+//   @media (max-width: 1023px) {
+//     width: ${({ $collapsed }) => ($collapsed ? "72px" : "320px")};
+//   }
+// `;
+
 const ConversationSidebar = styled.section<{
   $collapsed: boolean;
 }>`
   height: 100%;
 
-  width: ${({ $collapsed }) => ($collapsed ? "82px" : "300px")};
+  width: ${({ $collapsed }) => ($collapsed ? "72px" : "300px")};
 
-  max-width: ${({ $collapsed }) => ($collapsed ? "82px" : "300px")};
+  max-width: ${({ $collapsed }) => ($collapsed ? "72px" : "300px")};
 
-  min-width: ${({ $collapsed }) => ($collapsed ? "82px" : "300px")};
+  min-width: ${({ $collapsed }) => ($collapsed ? "72px" : "300px")};
 
   display: flex;
   flex-direction: column;
@@ -396,8 +426,15 @@ const ConversationSidebar = styled.section<{
 
   flex-shrink: 0;
 
-  @media (max-width: 1023px) {
+  /*
+   * TABLET
+   */
+  @media (min-width: 768px) and (max-width: 1023px) {
     width: ${({ $collapsed }) => ($collapsed ? "72px" : "320px")};
+
+    max-width: ${({ $collapsed }) => ($collapsed ? "72px" : "320px")};
+
+    min-width: ${({ $collapsed }) => ($collapsed ? "72px" : "320px")};
   }
 `;
 
