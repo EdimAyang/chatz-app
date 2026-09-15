@@ -6,8 +6,8 @@ import {
   Settings,
   UserRound,
   //   MessageCircle,
-  //   PanelLeftClose,
-  //   PanelLeftOpen,
+  PanelLeftClose,
+  PanelLeftOpen,
   MessageSquare,
 } from "lucide-react";
 
@@ -86,6 +86,18 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
             online={isConnected}
           />
         </Link>
+
+        <CollapseButton
+          onClick={onToggle}
+          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+        >
+          {collapsed ? (
+            <PanelLeftOpen size={21} />
+          ) : (
+            <PanelLeftClose size={21} />
+          )}
+        </CollapseButton>
+
         <RailTop>
           <RailButton
             $active={isActive(PATHS.CHAT.HOME)}
@@ -123,7 +135,6 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
         </RailBottom>
       </NavigationRail>
 
-
       {/* CONVERSATION SIDEBAR */}
       <ConversationSidebar $collapsed={collapsed}>
         <Header>
@@ -133,17 +144,6 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
               <LogoText>Chatz</LogoText>
             </Logo>
           )}
-
-          {/* <CollapseButton
-            onClick={onToggle}
-            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-          >
-            {collapsed ? (
-              <PanelLeftOpen size={21} />
-            ) : (
-              <PanelLeftClose size={21} />
-            )}
-          </CollapseButton> */}
         </Header>
 
         {/* SEARCH */}
@@ -352,68 +352,40 @@ const LogoText = styled.span`
   color: ${({ theme }) => theme.colors.textPrimary};
 `;
 
-// const CollapseButton = styled.button`
-//   width: 40px;
-//   height: 40px;
+const CollapseButton = styled.button`
+  width: 40px;
+  height: 40px;
 
-//   display: grid;
-//   place-items: center;
+  display: grid;
+  place-items: center;
 
-//   border: none;
-//   border-radius: 10px;
+  border: none;
+  border-radius: 10px;
 
-//   background: transparent;
-//   color: ${({ theme }) => theme.colors.textSecondary};
+  background: transparent;
+  color: ${({ theme }) => theme.colors.textSecondary};
 
-//   cursor: pointer;
+  cursor: pointer;
 
-//   &:hover {
-//     background: ${({ theme }) => theme.colors.surface};
-//     color: ${({ theme }) => theme.colors.textPrimary};
-//   }
-// `;
-
-// const ConversationSidebar = styled.section<{
-//   $collapsed: boolean;
-// }>`
-//   height: 100%;
-
-//   width: ${({ $collapsed }) => ($collapsed ? "82px" : "300px")};
-
-//   max-width: ${({ $collapsed }) => ($collapsed ? "82px" : "300px")};
-
-//   min-width: ${({ $collapsed }) => ($collapsed ? "82px" : "300px")};
-
-//   display: flex;
-//   flex-direction: column;
-
-//   background: ${({ theme }) => theme.colors.background};
-
-//   border-right: 1px solid ${({ theme }) => theme.colors.border};
-
-//   transition: width 0.25s ease;
-
-//   overflow: hidden;
-
-//   flex-shrink: 0;
-
-//   @media (max-width: 1023px) {
-//     width: ${({ $collapsed }) => ($collapsed ? "72px" : "320px")};
-//   }
-// `;
+  &:hover {
+    background: ${({ theme }) => theme.colors.surface};
+    color: ${({ theme }) => theme.colors.textPrimary};
+  }
+`;
 
 const ConversationSidebar = styled.section<{
   $collapsed: boolean;
 }>`
   height: 100%;
 
-  width: ${({ $collapsed }) => ($collapsed ? "72px" : "300px")};
+  width: ${({ $collapsed }) => ($collapsed ? "0px" : "300px")};
 
-  max-width: ${({ $collapsed }) => ($collapsed ? "72px" : "300px")};
+  max-width: ${({ $collapsed }) => ($collapsed ? "0px" : "300px")};
 
-  min-width: ${({ $collapsed }) => ($collapsed ? "72px" : "300px")};
+  min-width: ${({ $collapsed }) => ($collapsed ? "0px" : "300px")};
 
-  display: flex;
+  display: ${({ $collapsed }) => ($collapsed ? "none" : "flex")};
+
   flex-direction: column;
 
   background: ${({ theme }) => theme.colors.background};
@@ -430,11 +402,13 @@ const ConversationSidebar = styled.section<{
    * TABLET
    */
   @media (min-width: 768px) and (max-width: 1023px) {
-    width: ${({ $collapsed }) => ($collapsed ? "72px" : "320px")};
 
-    max-width: ${({ $collapsed }) => ($collapsed ? "72px" : "320px")};
+    width: ${({ $collapsed }) => ($collapsed ? "0px" : "320px")};
 
-    min-width: ${({ $collapsed }) => ($collapsed ? "72px" : "320px")};
+    max-width: ${({ $collapsed }) => ($collapsed ? "0px" : "320px")};
+
+    min-width: ${({ $collapsed }) => ($collapsed ? "0px" : "320px")};
+   
   }
 `;
 

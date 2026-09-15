@@ -260,7 +260,7 @@ export interface CreateConversationResponse {
   conversation: Conversation;
 }
 
-export type MessageStatus = "sending" | "sent" | "read" | "failed";
+export type MessageStatus = "sending" | "sent" | "isRead" | "failed";
 
 export interface  ChatMessage {
   id: string;

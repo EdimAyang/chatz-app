@@ -72,8 +72,10 @@ export const ImageContent = ({
                     <AlertCircle size={12} />
                   ) : status === "sending" ? (
                     <Clock size={12} />
-                  ) : status === "read" ? (
+                  ) : isRead ? (
                     <CheckCheck size={12} />
+                  ) : status === "sent" ? (
+                    <Check size={12} />
                   ) : (
                     <Check size={12} />
                   )}{" "}
@@ -186,7 +188,6 @@ const CloseImageButton = styled.button`
     transform: scale(0.92);
   }
 `;
-
 
 const ImageContentWrapper = styled.div<{ $mine: boolean; $deleted: boolean }>`
   position: relative;

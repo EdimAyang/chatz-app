@@ -184,8 +184,6 @@ export default function ChatPage({
   const RecipientIsOnline = firstPage?.recipient?.user?.isOnline ?? false;
 
   useLayoutEffect(() => {
-    if (!conversationId || ourMessages.length === 0) return;
-
     const el = containerRef.current;
 
     if (!el) return;

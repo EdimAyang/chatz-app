@@ -11,7 +11,7 @@ import {
 import type { MessageStatus } from "#/types";
 import { type Dispatch, type SetStateAction } from "react";
 import { MessageContentWidth } from "./FileContent";
-
+import { createPortal } from "react-dom";
 
 interface VideoContentProps {
   src: string;
@@ -38,43 +38,40 @@ export const VideoContent = ({
   viewingVideo,
   setViewingVideo,
 }: VideoContentProps) => {
+  console.log(status, isRead);
 
-  const handleVideoPointerDown = (
-    event: React.PointerEvent<HTMLDivElement>,
-  ) => {
-    event.stopPropagation();
-  };
   return (
     <>
-      {viewingVideo && (
-        <VideoViewer onClick={() => setViewingVideo(false)}>
-          <VideoViewerPlayer
-            src={src}
-            controls
-            autoPlay
-            playsInline
-            onClick={(event) => event.stopPropagation()}
-          />
+      {viewingVideo &&
+        createPortal(
+          <VideoViewer onClick={() => setViewingVideo(false)}>
+            <VideoViewerPlayer
+              src={src}
+              controls
+              autoPlay
+              playsInline
+              onClick={(event) => {
+                event.stopPropagation();
+              }}
+            />
 
-          <CloseVideoButton
-            type="button"
-            onClick={() => setViewingVideo(false)}
-            aria-label="Close video"
-          >
-            <X size={24} />
-          </CloseVideoButton>
-        </VideoViewer>
-      )}
+            <CloseVideoButton
+              type="button"
+              onClick={() => setViewingVideo(false)}
+              aria-label="Close video"
+            >
+              <X size={24} />
+            </CloseVideoButton>
+          </VideoViewer>,
+          document.body,
+        )}
+
       <VideoContentWrapper
         $mine={mine}
         $deleted={!!isDeleted}
-        onPointerDownCapture={(event) => {
-          event.stopPropagation();
-        }}
-        onPointerDown={handleVideoPointerDown}
-        onClick={(event) => {
-          event.stopPropagation();
+        onClick={() => {
           onViewVideo?.();
+          setViewingVideo(true);
         }}
       >
         {" "}
@@ -98,8 +95,10 @@ export const VideoContent = ({
                     <AlertCircle size={12} />
                   ) : status === "sending" ? (
                     <Clock size={12} />
-                  ) : status === "read" ? (
+                  ) : isRead ? (
                     <CheckCheck size={12} />
+                  ) : status === "sent" ? (
+                    <Check size={12} />
                   ) : (
                     <Check size={12} />
                   )}{" "}
@@ -129,7 +128,7 @@ export const VideoContent = ({
 const VideoViewer = styled.div`
   position: fixed;
   inset: 0;
-  z-index: 9999;
+  z-index: 999999;
 
   display: flex;
   align-items: center;
@@ -226,7 +225,9 @@ const VideoPreview = styled.video`
   max-height: 280px;
   object-fit: cover;
   cursor: pointer;
+  pointer-events: auto;
 `;
+
 const MediaMetaOverlay = styled.div`
   position: absolute;
   right: 8px;
