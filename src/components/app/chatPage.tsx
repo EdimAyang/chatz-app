@@ -189,9 +189,6 @@ export default function ChatPage({
   const RecipientLastSeen = firstPage?.recipient?.user?.lastSeen ?? "";
   const RecipientIsOnline = firstPage?.recipient?.user?.isOnline ?? false;
 
-  if (isSuccess) {
-    scrollToBottomInstant();
-  }
 
   useLayoutEffect(() => {
     scrollToBottomInstant();
