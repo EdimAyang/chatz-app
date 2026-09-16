@@ -78,13 +78,7 @@ export const VideoContent = ({
         {!isDeleted ? (
           <>
             {" "}
-            <VideoPreview
-              controls
-              src={src}
-              playsInline
-              muted
-              preload="metadata"
-            />{" "}
+            <VideoPreview src={src} playsInline muted preload="metadata"/>{" "}
             <MediaMetaOverlay>
               {" "}
               <Time $mine={mine}>{time}</Time>{" "}
@@ -218,6 +212,14 @@ const VideoContentWrapper = styled.div<{ $mine: boolean; $deleted: boolean }>`
   background: ${({ $mine, theme }) =>
     $mine ? theme.colors.bubbleOutgoing : theme.colors.bubbleIncoming};
   opacity: ${({ $deleted }) => ($deleted ? 0.75 : 1)};
+  user-select: none;
+  -webkit-user-select: none;
+
+  /*
+    Let the MessageBubble/BubbleWrapper handle
+    horizontal swipe gestures.
+  */
+  touch-action: pan-y;
 `;
 const VideoPreview = styled.video`
   display: block;
@@ -225,7 +227,12 @@ const VideoPreview = styled.video`
   max-height: 280px;
   object-fit: cover;
   cursor: pointer;
-  pointer-events: auto;
+  pointer-events: none;
+
+  user-select: none;
+  -webkit-user-select: none;
+
+  -webkit-touch-callout: none;
 `;
 
 const MediaMetaOverlay = styled.div`
