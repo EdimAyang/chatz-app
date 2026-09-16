@@ -49,8 +49,14 @@ export default function ChatPage({
   );
   const [replyingTo, setReplyingTo] = useState<ChatMessage | null>(null);
 
-  const { data, isLoading, isFetchingNextPage, hasNextPage, fetchNextPage } =
-    useGetMessageQuery(conversationId ?? "", "100");
+  const {
+    data,
+    isLoading,
+    isFetchingNextPage,
+    hasNextPage,
+    fetchNextPage,
+    isSuccess,
+  } = useGetMessageQuery(conversationId ?? "", "100");
   const { data: userData, isLoading: isUserLoading } = useGetUserQuery(
     recipientId ?? "",
   );
@@ -183,12 +189,12 @@ export default function ChatPage({
   const RecipientLastSeen = firstPage?.recipient?.user?.lastSeen ?? "";
   const RecipientIsOnline = firstPage?.recipient?.user?.isOnline ?? false;
 
+  if (isSuccess) {
+    scrollToBottomInstant();
+  }
+
   useLayoutEffect(() => {
-    const el = containerRef.current;
-
-    if (!el) return;
-
-    el.scrollTop = el.scrollHeight;
+    scrollToBottomInstant();
   }, [conversationId]);
 
   useEffect(() => {

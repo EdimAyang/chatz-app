@@ -25,7 +25,7 @@ export const useGetUserQuery = (id:string)=>{
   return useQuery({
     queryKey:["user", id],
     queryFn:()=>getUser(id),
-    enabled:!!id
+    enabled:!!id,
   })
 }
 
