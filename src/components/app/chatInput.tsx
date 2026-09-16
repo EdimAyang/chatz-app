@@ -1504,6 +1504,7 @@ const AttachmentMenu = styled.div`
   box-shadow: ${({ theme }) => theme.shadows.md};
   width: min(240px, 72vw);
   padding: 8px;
+  z-index:9999;
 `;
 
 const AttachmentItem = styled.button`

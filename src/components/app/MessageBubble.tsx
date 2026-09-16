@@ -51,6 +51,9 @@ const BubbleWrapper = styled(motion.div)<{
     while Framer Motion handles the horizontal swipe.
   */
   touch-action: pan-y;
+
+  user-select: none;
+  -webkit-user-select: none;
 `;
 
 /* =========================================================
@@ -1038,6 +1041,9 @@ export function MessageBubble({
           }}
           dragElastic={0.25}
           dragDirectionLock
+          // onPointerDown={(event) => {
+          //   pointerTypeRef.current = event.pointerType;
+          // }}
           onDragStart={handleDragStart}
           onDrag={handleDrag}
           onDragEnd={handleDragEnd}

@@ -189,7 +189,7 @@ export default function ChatPage({
     if (!el) return;
 
     el.scrollTop = el.scrollHeight;
-  }, []);
+  }, [conversationId]);
 
   useEffect(() => {
     if (isAtBottom && isTyping) {

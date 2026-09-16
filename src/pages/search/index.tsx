@@ -154,7 +154,8 @@ const Header = styled.header`
   display: flex;
   align-items: center;
   gap: 12px;
-  padding-block: 10px;
+  padding: 10px;
+
 `;
 const Back = styled.button`
   width: 40px;
