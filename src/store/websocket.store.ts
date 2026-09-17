@@ -4,8 +4,8 @@ import { queryClient } from "@/lib/query-client";
 import { useOnlineUsersStore } from "./onlineUser.store";
 import type { ChatMessage } from "#/types";
 import {
-  getPendingMessages,
-  removePendingMessage,
+  getPendingActions,
+  removePendingAction,
 } from "#/lib/offline/messageQueue";
 
 export type CachedMessages = {
@@ -41,7 +41,7 @@ type WebSocketState = {
   send: (payload: any) => boolean;
 
   // 👇 THIS MUST BE HERE
-  flushPendingMessages: () => Promise<void>;
+  flushPendingActions: () => Promise<void>;
 };
 
 export const useWebSocketStore = create<WebSocketState>((set, get) => ({
@@ -59,11 +59,12 @@ export const useWebSocketStore = create<WebSocketState>((set, get) => ({
   shouldReconnect: true,
   reconnectTimer: null,
   reconnectAttempts: 0,
-  flushPendingMessages: async () => {
+
+  flushPendingActions: async () => {
     const socket = get().socket;
 
     if (!navigator.onLine) {
-      console.log("📴 Still offline, cannot flush messages");
+      console.log("📴 Still offline, cannot flush actions");
       return;
     }
 
@@ -72,16 +73,16 @@ export const useWebSocketStore = create<WebSocketState>((set, get) => ({
       return;
     }
 
-    const pendingMessages = await getPendingMessages();
+    const pendingActions = await getPendingActions();
 
-    if (!pendingMessages.length) {
-      console.log("📭 No pending messages");
+    if (!pendingActions.length) {
+      console.log("📭 No pending actions");
       return;
     }
 
-    console.log(`📦 Flushing ${pendingMessages.length} pending message(s)`);
+    console.log(`📦 Flushing ${pendingActions.length} pending action(s)`);
 
-    for (const message of pendingMessages) {
+    for (const action of pendingActions) {
       if (!navigator.onLine) {
         console.log("📴 Went offline during flush");
         break;
@@ -92,23 +93,185 @@ export const useWebSocketStore = create<WebSocketState>((set, get) => ({
         break;
       }
 
-      console.log("📤 Flushing:", message.clientMessageId);
+      console.log(`📤 Flushing ${action.type}:`, action.clientActionId);
 
-      socket.send(
-        JSON.stringify({
-          type: SocketEvent.NEW_MESSAGE,
-          conversationId: message.conversationId,
-          messageType: message.messageType,
-          message: message.message,
+      try {
+        switch (action.type) {
+          // =====================================================
+          // SEND MESSAGE
+          // =====================================================
 
-          ...(message.recipientId && {
-            recipientId: message.recipientId,
-          }),
+          case "SEND_MESSAGE": {
+            socket.send(
+              JSON.stringify({
+                type: SocketEvent.NEW_MESSAGE,
 
-          replyToMessageId: message.replyToMessageId,
-          clientMessageId: message.clientMessageId,
-        }),
-      );
+                conversationId: action.conversationId,
+
+                messageType: action.messageType,
+
+                message: action.message,
+
+                ...(action.recipientId && {
+                  recipientId: action.recipientId,
+                }),
+
+                replyToMessageId: action.replyToMessageId ?? null,
+
+                clientMessageId: action.clientMessageId,
+
+                ...(action.duration != null && {
+                  duration: action.duration,
+                }),
+              }),
+            );
+
+            break;
+          }
+
+          // =====================================================
+          // EDIT MESSAGE
+          // =====================================================
+
+          case "EDIT_MESSAGE": {
+            if (!action.messageId) {
+              console.warn("⚠️ EDIT_MESSAGE missing messageId", action);
+
+              await removePendingAction(action.clientActionId);
+
+              break;
+            }
+
+            socket.send(
+              JSON.stringify({
+                type: SocketEvent.EDIT_MESSAGE,
+
+                conversationId: action.conversationId,
+
+                messageId: action.messageId,
+
+                message: action.message ?? "",
+
+                clientActionId: action.clientActionId,
+              }),
+            );
+
+            break;
+          }
+
+          // =====================================================
+          // DELETE MESSAGE
+          // =====================================================
+
+          case "DELETE_MESSAGE": {
+            if (!action.messageId) {
+              console.warn("⚠️ DELETE_MESSAGE missing messageId", action);
+
+              await removePendingAction(action.clientActionId);
+
+              break;
+            }
+
+            socket.send(
+              JSON.stringify({
+                type: SocketEvent.DELETE_MESSAGE,
+
+                conversationId: action.conversationId,
+
+                messageId: action.messageId,
+
+                clientActionId: action.clientActionId,
+              }),
+            );
+
+            break;
+          }
+
+          // =====================================================
+          // ADD REACTION
+          // =====================================================
+
+          case "REACTION_ADD": {
+            if (!action.messageId || !action.emoji) {
+              console.warn(
+                "⚠️ REACTION_ADD missing messageId or emoji",
+                action,
+              );
+
+              await removePendingAction(action.clientActionId);
+
+              break;
+            }
+
+            socket.send(
+              JSON.stringify({
+                type: SocketEvent.MESSAGE_REACTION,
+
+                conversationId: action.conversationId,
+
+                messageId: action.messageId,
+
+                emoji: action.emoji,
+
+                action: "add",
+
+                clientActionId: action.clientActionId,
+              }),
+            );
+
+            break;
+          }
+
+          // =====================================================
+          // REMOVE REACTION
+          // =====================================================
+
+          case "REACTION_REMOVE": {
+            if (!action.messageId || !action.emoji) {
+              console.warn(
+                "⚠️ REACTION_REMOVE missing messageId or emoji",
+                action,
+              );
+
+              await removePendingAction(action.clientActionId);
+
+              break;
+            }
+
+            socket.send(
+              JSON.stringify({
+                type: SocketEvent.MESSAGE_REACTION,
+
+                conversationId: action.conversationId,
+
+                messageId: action.messageId,
+
+                emoji: action.emoji,
+
+                action: "remove",
+
+                clientActionId: action.clientActionId,
+              }),
+            );
+
+            break;
+          }
+
+          // =====================================================
+          // UNKNOWN
+          // =====================================================
+
+          default: {
+            console.warn("⚠️ Unknown pending action:", action);
+
+            await removePendingAction(action.clientActionId);
+          }
+        }
+      } catch (error) {
+        console.error(`❌ Failed to flush ${action.type}`, error);
+
+        break;
+      }
     }
   },
 
@@ -171,7 +334,7 @@ export const useWebSocketStore = create<WebSocketState>((set, get) => ({
         reconnectAttempts: 0,
       });
 
-      void get().flushPendingMessages();
+      void get().flushPendingActions();
     };
 
     socket.onclose = () => {
@@ -234,6 +397,14 @@ export const useWebSocketStore = create<WebSocketState>((set, get) => ({
           break;
 
         case SocketEvent.MESSAGE_REACTION: {
+          // ----------------------------------------
+          // ACTION SUCCESSFULLY PROCESSED
+          // ----------------------------------------
+
+          if (payload.clientActionId) {
+            void removePendingAction(payload.clientActionId);
+          }
+
           queryClient.setQueryData(
             ["messages", payload.conversationId],
             (oldData: any) => {
@@ -306,6 +477,14 @@ export const useWebSocketStore = create<WebSocketState>((set, get) => ({
         }
 
         case SocketEvent.DELETE_MESSAGE: {
+          // ----------------------------------------
+          // ACTION SUCCESSFULLY PROCESSED
+          // ----------------------------------------
+
+          if (payload.clientActionId) {
+            void removePendingAction(payload.clientActionId);
+          }
+
           queryClient.setQueryData(
             ["messages", payload.conversationId],
             (oldData: any) => {
@@ -321,6 +500,41 @@ export const useWebSocketStore = create<WebSocketState>((set, get) => ({
                           ...message,
                           isDeleted: true,
                           deletedAt: payload.deletedAt,
+                        }
+                      : message,
+                  ),
+                })),
+              };
+            },
+          );
+
+          break;
+        }
+
+        case SocketEvent.EDIT_MESSAGE: {
+          // ----------------------------------------
+          // ACTION SUCCESSFULLY PROCESSED
+          // ----------------------------------------
+
+          if (payload.clientActionId) {
+            void removePendingAction(payload.clientActionId);
+          }
+
+          queryClient.setQueryData(
+            ["messages", payload.conversationId],
+            (oldData: any) => {
+              if (!oldData) return oldData;
+
+              return {
+                ...oldData,
+                pages: oldData.pages.map((page: any) => ({
+                  ...page,
+                  messages: page.messages.map((message: any) =>
+                    message.id === payload.messageId
+                      ? {
+                          ...message,
+                          message: payload.message,
+                          editedAt: payload.editedAt,
                         }
                       : message,
                   ),
@@ -390,7 +604,7 @@ export const useWebSocketStore = create<WebSocketState>((set, get) => ({
 
         case SocketEvent.NEW_MESSAGE: {
           if (payload.clientMessageId) {
-            void removePendingMessage(payload.clientMessageId);
+            void removePendingAction(payload.clientMessageId);
           }
 
           const newMessage: ChatMessage = {
@@ -429,9 +643,8 @@ export const useWebSocketStore = create<WebSocketState>((set, get) => ({
           queryClient.setQueryData<CachedMessages>(
             ["messages", payload.conversationId],
             (old) => {
+              console.log("🟡 OLD CACHE", old);
 
-               console.log("🟡 OLD CACHE", old);
-               
               // No cache yet
               if (!old?.pages?.length) {
                 return {

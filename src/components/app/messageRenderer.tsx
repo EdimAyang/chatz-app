@@ -1,7 +1,10 @@
 import { MessageType, SocketEvent } from "#/lib/constants";
 import { MessageBubble } from "./MessageBubble";
 import { formatTime } from "#/utils/dates";
-import { useWebSocketStore } from "#/store/websocket.store";
+import {
+  useWebSocketStore,
+  type CachedMessages,
+} from "#/store/websocket.store";
 import { useAuthStore } from "#/store/auth.store";
 import type { ChatMessage, MessageStatus } from "#/types";
 import { FileContent } from "./content/FileContent";
@@ -10,6 +13,8 @@ import { VideoContent } from "./content/VideoContents";
 import { ImageContent } from "./content/ImageContent";
 import { TextContent } from "./content/TextContent";
 import { useState } from "react";
+import { addPendingAction } from "#/lib/offline/messageQueue";
+import { queryClient } from "#/lib/query-client";
 
 export interface MessageRendererProps {
   message: ChatMessage;
@@ -17,6 +22,7 @@ export interface MessageRendererProps {
   onEdit: (message: ChatMessage) => void;
   onReply: (message: ChatMessage) => void;
   status: MessageStatus;
+  onDelete: (message: ChatMessage) => void;
 }
 
 export const MessageRenderer = ({
@@ -25,6 +31,7 @@ export const MessageRenderer = ({
   onEdit,
   onReply,
   status,
+  onDelete,
 }: MessageRendererProps) => {
   const { send } = useWebSocketStore();
   const { user } = useAuthStore();
@@ -57,26 +64,177 @@ export const MessageRenderer = ({
         ? formatTime(message.editedAt)
         : undefined,
 
+    onDelete: mine && !message.isDeleted ? () => onDelete(message) : undefined,
+
     reactions: message.reactions,
 
-    onReact: (emoji: string) => {
-      send({
+    onReact: async (emoji: string) => {
+      const clientActionId = crypto.randomUUID();
+
+      // ----------------------------------------
+      // 1. UPDATE UI IMMEDIATELY
+      // ----------------------------------------
+
+      queryClient.setQueryData<CachedMessages>(
+        ["messages", message.conversationId],
+        (old) => {
+          if (!old) return old;
+
+          return {
+            ...old,
+            pages: old.pages.map((page) => ({
+              ...page,
+              messages: page.messages.map((msg) => {
+                if (msg.id !== message.id) {
+                  return msg;
+                }
+
+                const reactions = msg.reactions ?? [];
+
+                const existingReaction = reactions.find(
+                  (reaction: { userId: string; emoji: string }) =>
+                    reaction?.userId === user?.id,
+                );
+
+                if (existingReaction) {
+                  return {
+                    ...msg,
+                    reactions: reactions.map(
+                      (reaction: { userId: string; emoji: string }) =>
+                        reaction.userId === user?.id
+                          ? {
+                              ...reaction,
+                              emoji,
+                            }
+                          : reaction,
+                    ),
+                  };
+                }
+
+                return {
+                  ...msg,
+                  reactions: [
+                    ...reactions,
+                    {
+                      userId: user?.id as string,
+                      emoji,
+                    },
+                  ],
+                };
+              }),
+            })),
+          };
+        },
+      );
+
+      // ----------------------------------------
+      // 2. SAVE TO OFFLINE OUTBOX
+      // ----------------------------------------
+
+      await addPendingAction({
+        clientActionId,
+
+        type: "REACTION_ADD",
+
+        conversationId: message.conversationId,
+        messageId: message.id,
+
+        emoji,
+
+        createdAt: new Date().toISOString(),
+      });
+
+      // ----------------------------------------
+      // 3. SEND IF ONLINE
+      // ----------------------------------------
+
+      const sent = send({
         type: SocketEvent.MESSAGE_REACTION,
+
         conversationId: message.conversationId,
         messageId: message.id,
         emoji,
         action: "add",
+
+        clientActionId,
       });
+
+      if (!sent) {
+        console.log("📦 Reaction saved to offline outbox");
+      }
     },
 
-    onRemoveReaction: (emoji: string) => {
-      send({
+    onRemoveReaction: async (emoji: string) => {
+      const clientActionId = crypto.randomUUID();
+
+      // ----------------------------------------
+      // 1. UPDATE UI IMMEDIATELY
+      // ----------------------------------------
+
+      queryClient.setQueryData<CachedMessages>(
+        ["messages", message.conversationId],
+        (old) => {
+          if (!old) return old;
+
+          return {
+            ...old,
+            pages: old.pages.map((page) => ({
+              ...page,
+              messages: page.messages.map((msg) => {
+                if (msg.id !== message.id) {
+                  return msg;
+                }
+
+                return {
+                  ...msg,
+                  reactions: (msg.reactions ?? []).filter(
+                    (reaction: { userId: string; emoji: string }) =>
+                      !(
+                        reaction.userId === user?.id && reaction.emoji === emoji
+                      ),
+                  ),
+                };
+              }),
+            })),
+          };
+        },
+      );
+
+      // ----------------------------------------
+      // 2. SAVE TO OFFLINE OUTBOX
+      // ----------------------------------------
+
+      await addPendingAction({
+        clientActionId,
+
+        type: "REACTION_REMOVE",
+
+        conversationId: message.conversationId,
+        messageId: message.id,
+
+        emoji,
+
+        createdAt: new Date().toISOString(),
+      });
+
+      // ----------------------------------------
+      // 3. SEND IF ONLINE
+      // ----------------------------------------
+
+      const sent = send({
         type: SocketEvent.MESSAGE_REACTION,
+
         conversationId: message.conversationId,
         messageId: message.id,
         emoji,
         action: "remove",
+
+        clientActionId,
       });
+
+      if (!sent) {
+        console.log("📦 Reaction removal saved to offline outbox");
+      }
     },
   };
 
@@ -98,6 +256,13 @@ export const MessageRenderer = ({
 
             onReply?.(message);
           }}
+
+           onDelete={() => {
+            if (message.id.startsWith("temp-")) return;
+
+            onDelete?.(message);
+          }}
+
         >
           <TextContent
             status={status}
@@ -140,6 +305,12 @@ export const MessageRenderer = ({
 
             onReply?.(message);
           }}
+
+           onDelete={() => {
+            if (message.id.startsWith("temp-")) return;
+
+            onDelete?.(message);
+          }}
         >
           <ImageContent
             onClick={() => setViewingImage(true)}
@@ -171,6 +342,12 @@ export const MessageRenderer = ({
             if (message.id.startsWith("temp-")) return;
 
             onReply?.(message);
+          }}
+
+           onDelete={() => {
+            if (message.id.startsWith("temp-")) return;
+
+            onDelete?.(message);
           }}
         >
           <VideoContent
@@ -205,6 +382,12 @@ export const MessageRenderer = ({
 
             onReply?.(message);
           }}
+
+           onDelete={() => {
+            if (message.id.startsWith("temp-")) return;
+
+            onDelete?.(message);
+          }}
         >
           <AudioContent
             deleteTime={formatTime(message.deletedAt!)}
@@ -234,6 +417,12 @@ export const MessageRenderer = ({
             if (message.id.startsWith("temp-")) return;
 
             onReply?.(message);
+          }}
+
+           onDelete={() => {
+            if (message.id.startsWith("temp-")) return;
+
+            onDelete?.(message);
           }}
         >
           <FileContent

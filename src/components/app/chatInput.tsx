@@ -37,7 +37,7 @@ import { Button } from "./Button";
 import type { ChatMessage } from "#/types";
 import { useAuthStore } from "#/store/auth.store";
 import type { ReplyToMessage } from "./MessageBubble";
-import { addPendingMessage } from "#/lib/offline/messageQueue";
+import { addPendingAction } from "#/lib/offline/messageQueue";
 // import { addOptimisticMediaMessage } from "#/utils/addPendingMedia";
 import { checkMediaOnline } from "#/utils/checkMediaOnline";
 // import { useSyncPendingMedia } from "#/hooks/useSyncPendingMedia";
@@ -77,6 +77,9 @@ type ChatInputProps = {
 
   setEditingMessage: React.Dispatch<React.SetStateAction<ChatMessage | null>>;
 
+  deleteMessage: ChatMessage | null;
+  setDeleteMessage: React.Dispatch<React.SetStateAction<ChatMessage | null>>;
+
   // setDeleteMessage: React.Dispatch<React.SetStateAction<ChatMessage | null>>;
 };
 
@@ -96,8 +99,8 @@ export default function ChatInput({
   setEditingMessage,
   replyingTo,
   setReplyingTo,
-  // deleteMessage,
-  // setDeleteMessage,
+  deleteMessage,
+  setDeleteMessage,
 }: ChatInputProps) {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
@@ -196,16 +199,79 @@ export default function ChatInput({
       if (editingMessage.id.startsWith("temp-")) {
         return;
       }
-      send({
+
+      const clientActionId = crypto.randomUUID();
+
+      // ----------------------------------------
+      // 1. UPDATE UI IMMEDIATELY
+      // ----------------------------------------
+
+      queryClient.setQueryData<CachedMessages>(
+        ["messages", conversationId],
+        (old) => {
+          if (!old) return old;
+
+          return {
+            ...old,
+            pages: old.pages.map((page) => ({
+              ...page,
+              messages: page.messages.map((msg) =>
+                msg.id === editingMessage.id
+                  ? {
+                      ...msg,
+                      message: trimmedMessage,
+                      editedAt: new Date().toISOString(),
+                    }
+                  : msg,
+              ),
+            })),
+          };
+        },
+      );
+
+      // ----------------------------------------
+      // 2. SAVE EDIT TO OFFLINE OUTBOX
+      // ----------------------------------------
+
+      await addPendingAction({
+        clientActionId,
+
+        type: "EDIT_MESSAGE",
+
+        conversationId,
+        messageId: editingMessage.id,
+
+        message: trimmedMessage,
+
+        createdAt: new Date().toISOString(),
+      });
+
+      // ----------------------------------------
+      // 3. SEND IF ONLINE
+      // ----------------------------------------
+
+      const sent = send({
         type: SocketEvent.EDIT_MESSAGE,
+
         conversationId,
         messageId: editingMessage.id,
         message: trimmedMessage,
-        recipientId,
+
+        clientActionId,
       });
+
+      if (!sent) {
+        console.log("📦 Edit saved to offline outbox");
+      }
+
+      // ----------------------------------------
+      // 4. CLEAN UI
+      // ----------------------------------------
 
       setEditingMessage(null);
       reset();
+      stopTyping();
+
       return;
     }
 
@@ -214,6 +280,7 @@ export default function ChatInput({
     // ----------------------------------------
 
     const tempId = `temp-${crypto.randomUUID()}`;
+    const clientActionId = crypto.randomUUID();
     const createdAt = new Date().toISOString();
 
     const replyToMessageId =
@@ -224,6 +291,7 @@ export default function ChatInput({
     const optimisticMessage: ChatMessage = {
       id: tempId,
       clientMessageId: tempId,
+
       conversationId,
       senderId: user?.id as string,
 
@@ -260,12 +328,6 @@ export default function ChatInput({
     queryClient.setQueryData<CachedMessages>(
       ["messages", conversationId],
       (old) => {
-        // console.log("🟡 OPTIMISTIC UPDATE", {
-        //   conversationId,
-        //   old,
-        //   optimisticMessage,
-        // });
-
         if (!old) {
           return {
             pages: [
@@ -280,7 +342,6 @@ export default function ChatInput({
 
         const pages = [...old.pages];
 
-        // New messages belong to the newest page
         const firstPage = pages[0];
 
         pages[0] = {
@@ -299,8 +360,11 @@ export default function ChatInput({
     // 2. SAVE TO OFFLINE OUTBOX
     // ----------------------------------------
 
-    await addPendingMessage({
-      clientMessageId: tempId,
+    await addPendingAction({
+      clientActionId,
+
+      type: "SEND_MESSAGE",
+
       conversationId,
 
       ...(recipientId && {
@@ -309,6 +373,8 @@ export default function ChatInput({
 
       message: trimmedMessage,
       messageType: MessageType.TEXT,
+
+      clientMessageId: tempId,
 
       replyToMessageId,
 
@@ -845,8 +911,78 @@ export default function ChatInput({
   const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault();
-     void handleSubmit(onSubmit)();
+      void handleSubmit(onSubmit)();
     }
+  };
+
+  const handleDelete = async () => {
+    const clientActionId = crypto.randomUUID();
+
+    // ----------------------------------------
+    // 1. UPDATE UI IMMEDIATELY
+    // ----------------------------------------
+
+   
+  queryClient.setQueryData<CachedMessages>(
+    ["messages", editingMessage?.conversationId],
+    (old) => {
+      if (!old) return old;
+
+      return {
+        ...old,
+        pages: old.pages.map((page) => ({
+          ...page,
+          messages: page.messages.map((msg) =>
+            msg.id === editingMessage?.id
+              ? {
+                  ...msg,
+                  isDeleted: true,
+                  deletedAt: new Date().toISOString(),
+                }
+              : msg,
+          ),
+        })),
+      };
+    },
+  );
+
+    // ----------------------------------------
+    // 2. SAVE TO OFFLINE OUTBOX
+    // ----------------------------------------
+
+    await addPendingAction({
+      clientActionId,
+      type: "DELETE_MESSAGE",
+      conversationId:deleteMessage?.conversationId as string,
+      messageId: deleteMessage?.id,
+
+      createdAt: new Date().toISOString(),
+    });
+
+    // ----------------------------------------
+    // 3. SEND IF ONLINE
+    // ----------------------------------------
+
+    const sent = send({
+      type: SocketEvent.DELETE_MESSAGE,
+
+      conversationId: deleteMessage?.conversationId,
+      messageId: deleteMessage?.id,
+
+      clientActionId,
+    });
+
+    if (!sent) {
+      console.log("📦 Delete saved to offline outbox");
+    }
+
+    // ----------------------------------------
+    // 4. CLEAN UI
+    // ----------------------------------------
+
+    setDeleteMessage(null);
+    setEditingMessage(null)
+    reset();
   };
 
   return (
@@ -885,16 +1021,7 @@ export default function ChatInput({
             <DeleteEdit
               type="button"
               aria-label="Delete message"
-              onClick={() => {
-                send({
-                  type: SocketEvent.DELETE_MESSAGE,
-                  conversationId: editingMessage.conversationId,
-                  messageId: editingMessage.id,
-                });
-
-                setEditingMessage(null);
-                reset();
-              }}
+              onClick={handleDelete}
             >
               <Trash2 size={16} />
             </DeleteEdit>
@@ -1504,7 +1631,7 @@ const AttachmentMenu = styled.div`
   box-shadow: ${({ theme }) => theme.shadows.md};
   width: min(240px, 72vw);
   padding: 8px;
-  z-index:9999;
+  z-index: 9999;
 `;
 
 const AttachmentItem = styled.button`

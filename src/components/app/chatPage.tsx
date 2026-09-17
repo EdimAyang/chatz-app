@@ -15,7 +15,7 @@ import { useAudioRecorder } from "#/hooks/useAudioRecorder";
 import ChatInput from "@/components/app/chatInput";
 import { useGetMessageQuery } from "@/hooks/queries/useGetMessage";
 import { useUserProfile } from "@/store/auth.store";
-import { useWebSocketStore } from "@/store/websocket.store";
+import { useWebSocketStore, type CachedMessages } from "@/store/websocket.store";
 import { formatMessageDate, formatTime } from "@/utils/dates";
 import { useGetUserQuery } from "#/hooks/queries/useUsers";
 import { AnimatePresence, motion } from "framer-motion";
@@ -33,6 +33,8 @@ import {
 import { useInfiniteScroll } from "#/hooks/useInfiniteScroll";
 // import type { MessageRendererProps } from "./messageRenderer";
 import type { ChatMessage, MessageStatus } from "#/types";
+import { addPendingAction } from "#/lib/offline/messageQueue";
+import { queryClient } from "#/lib/query-client";
 
 type ChatPageProps = {
   conversationId?: string;
@@ -49,13 +51,14 @@ export default function ChatPage({
   );
   const [replyingTo, setReplyingTo] = useState<ChatMessage | null>(null);
 
+    const [deleteMessage, setDeleteMessage] = useState<ChatMessage | null>(null);
+
   const {
     data,
     isLoading,
     isFetchingNextPage,
     hasNextPage,
     fetchNextPage,
-    isSuccess,
   } = useGetMessageQuery(conversationId ?? "", "100");
   const { data: userData, isLoading: isUserLoading } = useGetUserQuery(
     recipientId ?? "",
@@ -266,6 +269,75 @@ export default function ChatPage({
     </Header>
   );
 
+
+  console.log(deleteMessage)
+  
+  const handleDelete = async () => {
+      const clientActionId = crypto.randomUUID();
+  
+      // ----------------------------------------
+      // 1. UPDATE UI IMMEDIATELY
+      // ----------------------------------------
+  
+      queryClient.setQueryData<CachedMessages>(
+        ["messages", deleteMessage?.conversationId],
+        (old) => {
+          if (!old) return old;
+  
+          return {
+            ...old,
+            pages: old.pages.map((page) => ({
+              ...page,
+              messages: page.messages.map((message) =>
+                message.id === deleteMessage?.id
+                  ? {
+                      ...message,
+                      isDeleted: true,
+                      deletedAt: new Date().toISOString(),
+                    }
+                  : message,
+              ),
+            })),
+          };
+        },
+      );
+  
+      // ----------------------------------------
+      // 2. SAVE TO OFFLINE OUTBOX
+      // ----------------------------------------
+  
+      await addPendingAction({
+        clientActionId,
+        type: "DELETE_MESSAGE",
+        conversationId: deleteMessage?.conversationId as string,
+        messageId: deleteMessage?.id,
+  
+        createdAt: new Date().toISOString(),
+      });
+  
+      // ----------------------------------------
+      // 3. SEND IF ONLINE
+      // ----------------------------------------
+  
+      const sent = send({
+        type: SocketEvent.DELETE_MESSAGE,
+  
+        conversationId: deleteMessage?.conversationId,
+        messageId: deleteMessage?.id,
+      });
+  
+      if (!sent) {
+        console.log("📦 Delete saved to offline outbox");
+      }
+  
+      // ----------------------------------------
+      // 4. CLEAN UI
+      // ----------------------------------------
+  
+      setDeleteMessage(null);
+      setEditingMessage(null)
+    };
+
   return (
     <ChatLayout>
       {isUserLoading || isLoading ? (
@@ -316,6 +388,16 @@ export default function ChatPage({
                         setReplyingTo(message);
                         setEditingMessage(null);
                       }}
+
+                      onDelete={(message) => {
+                        if (message.id.startsWith("temp-")) {
+                          return;
+                        }
+                         setDeleteMessage(message);
+                        handleDelete()
+                        setEditingMessage(null);
+                        setReplyingTo(null)
+                      }}
                     />
                   </Fragment>
                 );
@@ -365,6 +447,8 @@ export default function ChatPage({
         setEditingMessage={setEditingMessage!}
         replyingTo={replyingTo}
         setReplyingTo={setReplyingTo}
+        deleteMessage={deleteMessage} 
+        setDeleteMessage={setDeleteMessage}
       />
     </ChatLayout>
   );
