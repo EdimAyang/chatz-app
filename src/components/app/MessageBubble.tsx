@@ -1,11 +1,17 @@
 import { MessageType, SocketEvent } from "#/lib/constants";
-import { useWebSocketStore } from "#/store/websocket.store";
+import {
+  useWebSocketStore,
+  type CachedMessages,
+} from "#/store/websocket.store";
 import type { ChatMessage, MessageStatus } from "#/types";
 import { AnimatePresence, motion, type PanInfo } from "framer-motion";
 import { Pencil, Reply, Smile, Trash2, X } from "lucide-react";
 import { useState } from "react";
 import styled from "styled-components";
 import { createPortal } from "react-dom";
+import { queryClient } from "#/lib/query-client";
+import { addPendingAction } from "#/lib/offline/messageQueue";
+
 /* =========================================================
    ROW
 ========================================================= */
@@ -837,7 +843,7 @@ export function MessageBubble({
   reactions,
   replyTo,
   message,
-  onDelete,
+  // onDelete,
 }: MessageBubbleProps) {
   const [showDesktopReactionPicker, setShowDesktopReactionPicker] =
     useState(false);
@@ -924,6 +930,74 @@ export function MessageBubble({
 
   // console.log(showMobileActions);
 
+  const handleDelete = async () => {
+    const clientActionId = crypto.randomUUID();
+
+    // ----------------------------------------
+    // 1. UPDATE UI IMMEDIATELY
+    // ----------------------------------------
+
+    queryClient.setQueryData<CachedMessages>(
+      ["messages", message.conversationId],
+      (old) => {
+        if (!old) return old;
+
+        return {
+          ...old,
+          pages: old.pages.map((page) => ({
+            ...page,
+            messages: page.messages.map((msg) =>
+              msg.id === message.id
+                ? {
+                    ...msg,
+                    isDeleted: true,
+                    deletedAt: new Date().toISOString(),
+                  }
+                : msg,
+            ),
+          })),
+        };
+      },
+    );
+
+    // ----------------------------------------
+    // 2. SAVE TO OFFLINE OUTBOX
+    // ----------------------------------------
+
+    await addPendingAction({
+      clientActionId,
+      type: "DELETE_MESSAGE",
+      conversationId: message.conversationId,
+      messageId: message?.id,
+
+      createdAt: new Date().toISOString(),
+    });
+
+    // ----------------------------------------
+    // 3. SEND IF ONLINE
+    // ----------------------------------------
+
+    const sent = send({
+      type: SocketEvent.DELETE_MESSAGE,
+
+      conversationId: message?.conversationId,
+      messageId: message?.id,
+
+      clientActionId,
+    });
+
+    if (!sent) {
+      console.log("📦 Delete saved to offline outbox");
+    }
+
+    // ----------------------------------------
+    // 4. CLEAN UI
+    // ----------------------------------------
+
+    // setEditingMessage(null);
+    // reset();
+  };
+
   return (
     <>
       {showMobileActions &&
@@ -986,9 +1060,9 @@ export function MessageBubble({
                 type="button"
                 aria-label="Delete message"
                 onClick={() => {
-                  setShowMobileActions(false);
+                  handleDelete();
                   setShowMobileReactionPicker(false);
-                  onDelete?.();
+                  setShowMobileActions(false);
                 }}
               >
                 <Trash2 size={17} />
@@ -1186,11 +1260,7 @@ export function MessageBubble({
                     return;
                   }
 
-                  send({
-                    type: SocketEvent.DELETE_MESSAGE,
-                    conversationId: message.conversationId,
-                    messageId: message.id,
-                  });
+                  handleDelete();
 
                   closeActions();
                 }}

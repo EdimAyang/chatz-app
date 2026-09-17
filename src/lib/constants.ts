@@ -8,6 +8,7 @@ export enum SocketEvent {
   DELETE_MESSAGE = "DELETE_MESSAGE",
   EDIT_MESSAGE = "EDIT_MESSAGE",
   MESSAGE_REACTION = "MESSAGE_REACTION",
+  
 }
 
 export enum MessageType {
