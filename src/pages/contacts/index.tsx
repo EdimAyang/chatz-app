@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import styled from "styled-components";
 // import { UserPlus } from "lucide-react";
 import { SearchBar } from "@/components/app/SearchBar";
@@ -11,15 +11,26 @@ import { LoadingOlder, UserListSkeleton } from "#/components/app/Loader";
 import { BottomNav } from "@/components/app/BottomNav";
 import { MobileNav } from "#/layouts/appLayouts";
 import { useInfiniteScroll } from "#/hooks/useInfiniteScroll";
-import{ useDebounce} from "#/hooks/useDebounce";
+import { useDebounce } from "#/hooks/useDebounce";
+import { useAuthStore } from "#/store/auth.store";
+import { queryClient } from "#/lib/query-client";
 
 const Contacts = () => {
   const [q, setQ] = useState("");
   const navigate = useNavigate();
-   const debounceQuery = useDebounce(q, 1000);
+  const debounceQuery = useDebounce(q, 1000);
+  const { isAuthenticated } = useAuthStore();
 
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } =
-    useGetUsersQuery(10, debounceQuery);
+    useGetUsersQuery(10, debounceQuery, isAuthenticated);
+
+     const refreshChatData = () => {
+        void queryClient.invalidateQueries({ queryKey: ["users"] });
+      };
+
+    useEffect(()=>{
+      refreshChatData()
+    },[])
 
   const contacts = useMemo(
     () => data?.pages.flatMap((page) => page.data) ?? [],

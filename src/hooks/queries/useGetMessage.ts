@@ -1,9 +1,9 @@
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { getMessages } from "@/api/message.api";
 
-export const useGetMessageQuery = (id: string, limit: string) => {
+export const useGetMessageQuery = (id: string, limit: string, auth = false) => {
   return useInfiniteQuery({
-    queryKey: ["messages", id],
+    queryKey: ["messages", id, auth],
 
     queryFn: ({ pageParam }) => {
       return getMessages(id, limit, pageParam ?? "");
@@ -14,6 +14,6 @@ export const useGetMessageQuery = (id: string, limit: string) => {
     getNextPageParam: (lastPage) =>
       lastPage.hasMore ? lastPage.nextCursor : undefined,
 
-    enabled: !!id,
+    // enabled: !!id,
   });
 };

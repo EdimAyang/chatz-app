@@ -7,7 +7,7 @@ export const useGetConversationsQuery = (
   auth = false,
 ) => {
   return useInfiniteQuery({
-    queryKey: ["conversations", search, limit],
+    queryKey: ["conversations", search, limit, auth],
 
     queryFn: ({ pageParam }) => getConversations(limit, pageParam, search),
 

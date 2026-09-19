@@ -79,7 +79,7 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
             space={2}
             src={
               profile?.data?.avatar
-                ? profile.data.avatar
+                ? profile?.data?.avatar
                 : "https://i.pravatar.cc/150?u=me"
             }
             size={48}
@@ -193,24 +193,24 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
                 key={item.id}
                 onClick={() => handleSearchClick(item.recipient.id)}
               >
-                {item.recipient.avatarUrl ? (
+                {item?.recipient?.avatarUrl ? (
                   <Avatar
-                    src={item.recipient.avatarUrl}
-                    alt={item.recipient.username}
+                    src={item?.recipient?.avatarUrl ?? ''}
+                    alt={item?.recipient?.username ?? ''}
                     size={54}
-                    online={item.recipient.isOnline}
-                    userId={item.recipient.id}
+                    online={item.recipient.isOnline ?? false}
+                    userId={item.recipient.id ?? ''}
                   />
                 ) : (
                   <Initials>
-                    {item.recipient.username.charAt(0).toUpperCase()}
+                    {item?.recipient?.username?.charAt(0).toUpperCase() ?? ''}
                   </Initials>
                 )}
 
                 {!collapsed && (
                   <ConversationContent>
                     <ConversationTop>
-                      <UserName>{item.recipient.username}</UserName>
+                      <UserName>{item?.recipient?.username ?? ''}</UserName>
                       <Time $unread={item?.unreadCount > 0}>
                         {formatTime(item?.updatedAt ?? "")}
                       </Time>
