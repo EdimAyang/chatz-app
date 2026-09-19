@@ -22,6 +22,7 @@ import { useMediaQuery } from "#/hooks/useMediaQuery";
 import { api } from "#/api/axios";
 import { ConnectionBadge } from "#/components/app/chatPage";
 import { useInfiniteScroll } from "#/hooks/useInfiniteScroll";
+import { useGetUsersQuery } from "#/hooks/queries/useUsers";
 
 const Home = () => {
   // const [toast, setToast] = useState(false);
@@ -35,6 +36,9 @@ const Home = () => {
 
  const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } =
      useGetConversationsQuery("20", '', isAuthenticated);
+     
+         useGetUsersQuery(10, '', isAuthenticated);
+     
  
    const handleScroll = useInfiniteScroll({
      direction: "bottom",

@@ -4,9 +4,10 @@ import { getUsers, getUser } from "#/api/users.api";
 export const useGetUsersQuery = (
   limit = 10,
   search = "",
+  auth=false
 ) => {
   return useInfiniteQuery({
-    queryKey: ["users", search, limit],
+    queryKey: ["users", search, limit, auth],
 
     queryFn: ({ pageParam }) =>
       getUsers(pageParam, limit, search),
@@ -21,11 +22,11 @@ export const useGetUsersQuery = (
 };
 
 
-export const useGetUserQuery = (id:string)=>{
+export const useGetUserQuery = (id:string, auth=false)=>{
   return useQuery({
-    queryKey:["user", id],
+    queryKey:["user", id, auth],
     queryFn:()=>getUser(id),
-    enabled:!!id,
+    enabled:!!id || !!auth,
   })
 }
 

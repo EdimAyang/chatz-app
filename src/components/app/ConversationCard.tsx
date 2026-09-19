@@ -86,15 +86,15 @@ export function ConversationCard({
           }}
         >
           <Avatar
-            src={c?.recipient.avatarUrl ?? ""}
-            alt={c?.recipient.username.charAt(0)}
+            src={c?.recipient?.avatarUrl ?? ""}
+            alt={c?.recipient?.username.charAt(0) ?? ''}
             size={54}
-            online={c?.recipient.isOnline}
-            userId={c?.recipient.id}
+            online={c?.recipient?.isOnline ?? ""}
+            userId={c?.recipient?.id ?? ""}
           />
           <Meta>
             <TopRow>
-              <Name>{c?.recipient.username}</Name>
+              <Name>{c?.recipient?.username ?? ""}</Name>
               <Time $unread={c?.unreadCount > 0}>
                 {formatTime(c?.updatedAt ?? "")}
               </Time>
