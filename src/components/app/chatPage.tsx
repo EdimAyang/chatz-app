@@ -58,6 +58,9 @@ export default function ChatPage({
 
   const { data, isLoading, isFetchingNextPage, hasNextPage, fetchNextPage } =
     useGetMessageQuery(conversationId ?? "", "100");
+
+
+    
   const { data: userData, isLoading: isUserLoading } = useGetUserQuery(
     recipientId ?? "",
   );

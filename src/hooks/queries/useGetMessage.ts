@@ -1,7 +1,7 @@
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { getMessages } from "@/api/message.api";
 
-export const useGetMessageQuery = (id: string, limit: string, auth = false) => {
+export const useGetMessageQuery = (id: string, limit: string) => {
   return useInfiniteQuery({
     queryKey: ["messages", id],
 
