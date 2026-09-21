@@ -220,7 +220,8 @@ export default function ChatPage({
   );
 
   const handleBack = () => {
-    navigate(-1);
+    if(!conversationId) return
+     navigate(PATHS.CHAT.HOME);
   };
 
   const header = userData ? (
@@ -512,6 +513,10 @@ const Back = styled.button`
   display: inline-flex;
   align-items: center;
   justify-content: center;
+
+   @media (min-width: 700px) {
+    display:none;
+  }
 `;
 const Who = styled.div`
   flex: 1;
