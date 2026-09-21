@@ -86,7 +86,7 @@ export default function ChatPage({
 
   useEffect(() => {
     if (createdConversationId) {
-      navigate(PATHS.CHAT.CHAT(createdConversationId), { replace: true });
+      navigate(PATHS.CHAT.CHAT(createdConversationId));
     }
   }, [createdConversationId, navigate]);
 
