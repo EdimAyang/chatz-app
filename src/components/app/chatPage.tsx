@@ -84,11 +84,11 @@ export default function ChatPage({
     return () => mediaQuery.removeEventListener("change", updateMobile);
   }, []);
 
-  useEffect(() => {
+  useMemo(() => {
     if (createdConversationId) {
       navigate(PATHS.CHAT.CHAT(createdConversationId));
     }
-  }, [createdConversationId, navigate]);
+  }, [createdConversationId]);
 
   useEffect(() => {
     const handleOnline = () => setIsNetworkOnline(true);
