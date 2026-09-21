@@ -199,7 +199,7 @@ export default function ChatInput({
     // ========================================
 
     if (editingMessage) {
-      if (editingMessage.id) {
+      if (!editingMessage.id) {
         return;
       }
 
