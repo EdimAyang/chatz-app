@@ -40,6 +40,7 @@ import type { ReplyToMessage } from "./MessageBubble";
 import { addPendingAction } from "#/lib/offline/messageQueue";
 // import { addOptimisticMediaMessage } from "#/utils/addPendingMedia";
 import { checkMediaOnline } from "#/utils/checkMediaOnline";
+import DeleteMessageDialog from "./DeleteDialogu";
 // import { useSyncPendingMedia } from "#/hooks/useSyncPendingMedia";
 
 type MessageForm = {
@@ -119,6 +120,7 @@ export default function ChatInput({
   const videoStreamRef = useRef<MediaStream | null>(null);
   const discardVideoRef = useRef(false);
   const pickerRef = useRef<HTMLDivElement | null>(null);
+  const [deleteMsg, setDeleteMsg] = useState<boolean>(false)
   // const [messageType] = useState<MessageType>(MessageType.TEXT);
 
   // const newOrOldmessageId = conversationId ?? recipientId;
@@ -192,24 +194,26 @@ export default function ChatInput({
 
     if (!trimmedMessage) return;
 
-    // ----------------------------------------
+    // ========================================
     // EDIT
-    // ----------------------------------------
+    // ========================================
+
     if (editingMessage) {
-      if (editingMessage.id.startsWith("temp-")) {
+      if (editingMessage.id) {
         return;
       }
 
       const clientActionId = crypto.randomUUID();
+      const editedAt = new Date().toISOString();
 
       // ----------------------------------------
-      // 1. UPDATE UI IMMEDIATELY
+      // 1. OPTIMISTIC EDIT
       // ----------------------------------------
 
       queryClient.setQueryData<CachedMessages>(
         ["messages", conversationId],
         (old) => {
-          if (!old) return old;
+          if (!old?.pages?.length) return old;
 
           return {
             ...old,
@@ -220,7 +224,7 @@ export default function ChatInput({
                   ? {
                       ...msg,
                       message: trimmedMessage,
-                      editedAt: new Date().toISOString(),
+                      editedAt,
                     }
                   : msg,
               ),
@@ -234,16 +238,19 @@ export default function ChatInput({
       // ----------------------------------------
 
       await addPendingAction({
+        // id: crypto.randomUUID(),
+
         clientActionId,
 
         type: "EDIT_MESSAGE",
 
         conversationId,
+
         messageId: editingMessage.id,
 
         message: trimmedMessage,
 
-        createdAt: new Date().toISOString(),
+        createdAt: editedAt,
       });
 
       // ----------------------------------------
@@ -254,7 +261,9 @@ export default function ChatInput({
         type: SocketEvent.EDIT_MESSAGE,
 
         conversationId,
+
         messageId: editingMessage.id,
+
         message: trimmedMessage,
 
         clientActionId,
@@ -275,27 +284,31 @@ export default function ChatInput({
       return;
     }
 
-    // ----------------------------------------
-    // CREATE OPTIMISTIC MESSAGE
-    // ----------------------------------------
+    // ========================================
+    // CREATE MESSAGE
+    // ========================================
 
     const tempId = `temp-${crypto.randomUUID()}`;
+
     const clientActionId = crypto.randomUUID();
+
     const createdAt = new Date().toISOString();
 
-    const replyToMessageId =
-      replyingTo?.id && !replyingTo.id.startsWith("temp-")
-        ? replyingTo.id
-        : null;
+    const replyToMessageId = replyingTo?.id ?? null;
+
+    // ========================================
+    // OPTIMISTIC MESSAGE
+    // ========================================
 
     const optimisticMessage: ChatMessage = {
-      id: tempId,
       clientMessageId: tempId,
 
       conversationId,
+
       senderId: user?.id as string,
 
       message: trimmedMessage,
+
       messageType: MessageType.TEXT,
 
       isRead: false,
@@ -314,6 +327,7 @@ export default function ChatInput({
       duration: null,
 
       replyToMessageId,
+
       replyTo: replyingTo ?? null,
 
       reactions: [],
@@ -321,14 +335,15 @@ export default function ChatInput({
       status: "sending",
     };
 
-    // ----------------------------------------
-    // 1. UPDATE UI IMMEDIATELY
-    // ----------------------------------------
+    // ========================================
+    // 1. OPTIMISTIC CACHE UPDATE
+    // ========================================
 
     queryClient.setQueryData<CachedMessages>(
       ["messages", conversationId],
       (old) => {
-        if (!old) {
+        // No existing cache
+        if (!old?.pages?.length) {
           return {
             pages: [
               {
@@ -336,17 +351,20 @@ export default function ChatInput({
                 nextCursor: null,
               },
             ],
+
             pageParams: [""],
           };
         }
 
-        const pages = [...old.pages];
+        const pages = old.pages.map((page) => ({
+          ...page,
+          messages: [...page.messages],
+        }));
 
-        const firstPage = pages[0];
-
+        // Newest messages are in page 0
         pages[0] = {
-          ...firstPage,
-          messages: [...firstPage.messages, optimisticMessage],
+          ...pages[0],
+          messages: [...pages[0].messages, optimisticMessage],
         };
 
         return {
@@ -356,9 +374,9 @@ export default function ChatInput({
       },
     );
 
-    // ----------------------------------------
+    // ========================================
     // 2. SAVE TO OFFLINE OUTBOX
-    // ----------------------------------------
+    // ========================================
 
     await addPendingAction({
       clientActionId,
@@ -372,6 +390,7 @@ export default function ChatInput({
       }),
 
       message: trimmedMessage,
+
       messageType: MessageType.TEXT,
 
       clientMessageId: tempId,
@@ -381,9 +400,9 @@ export default function ChatInput({
       createdAt,
     });
 
-    // ----------------------------------------
+    // ========================================
     // 3. SEND IF ONLINE
-    // ----------------------------------------
+    // ========================================
 
     const sent = send({
       type: SocketEvent.NEW_MESSAGE,
@@ -407,9 +426,9 @@ export default function ChatInput({
       console.log("📦 Message saved to offline outbox");
     }
 
-    // ----------------------------------------
+    // ========================================
     // 4. CLEAN UI
-    // ----------------------------------------
+    // ========================================
 
     scrollToBottom();
 
@@ -922,29 +941,28 @@ export default function ChatInput({
     // 1. UPDATE UI IMMEDIATELY
     // ----------------------------------------
 
-   
-  queryClient.setQueryData<CachedMessages>(
-    ["messages", editingMessage?.conversationId],
-    (old) => {
-      if (!old) return old;
+    queryClient.setQueryData<CachedMessages>(
+      ["messages", editingMessage?.conversationId],
+      (old) => {
+        if (!old) return old;
 
-      return {
-        ...old,
-        pages: old.pages.map((page) => ({
-          ...page,
-          messages: page.messages.map((msg) =>
-            msg.id === editingMessage?.id
-              ? {
-                  ...msg,
-                  isDeleted: true,
-                  deletedAt: new Date().toISOString(),
-                }
-              : msg,
-          ),
-        })),
-      };
-    },
-  );
+        return {
+          ...old,
+          pages: old.pages.map((page) => ({
+            ...page,
+            messages: page.messages.map((msg) =>
+              msg.id === editingMessage?.id
+                ? {
+                    ...msg,
+                    isDeleted: true,
+                    deletedAt: new Date().toISOString(),
+                  }
+                : msg,
+            ),
+          })),
+        };
+      },
+    );
 
     // ----------------------------------------
     // 2. SAVE TO OFFLINE OUTBOX
@@ -953,7 +971,7 @@ export default function ChatInput({
     await addPendingAction({
       clientActionId,
       type: "DELETE_MESSAGE",
-      conversationId:deleteMessage?.conversationId as string,
+      conversationId: deleteMessage?.conversationId as string,
       messageId: deleteMessage?.id,
 
       createdAt: new Date().toISOString(),
@@ -981,12 +999,24 @@ export default function ChatInput({
     // ----------------------------------------
 
     setDeleteMessage(null);
-    setEditingMessage(null)
+    setEditingMessage(null);
     reset();
   };
 
   return (
     <>
+      <DeleteMessageDialog
+        open={deleteMsg}
+        onCancel={() => {
+          setDeleteMessage(null)
+          setDeleteMsg(false)
+        }}
+        onConfirm={()=>{
+          handleDelete()
+          setDeleteMsg(false)
+        }}
+      />
+
       {replyingTo && (
         <ReplyPreview>
           <ReplyPreviewContent>
@@ -1021,7 +1051,7 @@ export default function ChatInput({
             <DeleteEdit
               type="button"
               aria-label="Delete message"
-              onClick={handleDelete}
+              onClick={()=>setDeleteMsg(true)}
             >
               <Trash2 size={16} />
             </DeleteEdit>

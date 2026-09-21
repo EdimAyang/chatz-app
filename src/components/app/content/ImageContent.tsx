@@ -19,7 +19,7 @@ interface ImageContentProps {
   isRead: boolean;
   status?: MessageStatus;
   isDeleted?: boolean;
-  deleteTime: string;
+  deleteTime: string | undefined;
   onClick?: () => void;
   viewingImage: boolean;
   setViewingImage: Dispatch<SetStateAction<boolean>>;

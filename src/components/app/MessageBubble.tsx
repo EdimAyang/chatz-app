@@ -11,6 +11,7 @@ import styled from "styled-components";
 import { createPortal } from "react-dom";
 import { queryClient } from "#/lib/query-client";
 import { addPendingAction } from "#/lib/offline/messageQueue";
+import DeleteMessageDialog from "./DeleteDialogu";
 
 /* =========================================================
    ROW
@@ -775,7 +776,7 @@ type Reaction = {
 };
 
 export type ReplyToMessage = {
-  id: string;
+  id?: string;
   conversationId: string;
   senderId: string;
   message: string | null;
@@ -852,6 +853,8 @@ export function MessageBubble({
     useState(false);
 
   const [showMobileActions, setShowMobileActions] = useState(false);
+
+  const [deleteMsg, setDeleteMsg] = useState<boolean>(false);
 
   const [isSwiping, setIsSwiping] = useState(false);
 
@@ -1000,6 +1003,18 @@ export function MessageBubble({
 
   return (
     <>
+      <DeleteMessageDialog
+        open={deleteMsg}
+        onCancel={() => {
+          // setDeleteMessage(null)
+          setDeleteMsg(false);
+        }}
+        onConfirm={()=>{
+          handleDelete()
+          setDeleteMsg(false)
+        }}
+      />
+
       {showMobileActions &&
         createPortal(
           <MobileActionBar
@@ -1060,7 +1075,7 @@ export function MessageBubble({
                 type="button"
                 aria-label="Delete message"
                 onClick={() => {
-                  handleDelete();
+                  setDeleteMsg(true);
                   setShowMobileReactionPicker(false);
                   setShowMobileActions(false);
                 }}
@@ -1196,6 +1211,9 @@ export function MessageBubble({
               title="Reply"
               onClick={(event) => {
                 event.stopPropagation();
+                if (!message.id) {
+                  return;
+                }
 
                 onReply?.();
 
@@ -1213,6 +1231,9 @@ export function MessageBubble({
               title="React"
               onClick={(event) => {
                 event.stopPropagation();
+                if (!message.id) {
+                  return;
+                }
 
                 setShowDesktopReactionPicker((previous) => !previous);
 
@@ -1234,6 +1255,9 @@ export function MessageBubble({
                 title="Edit"
                 onClick={(event) => {
                   event.stopPropagation();
+                  if (!message.id) {
+                    return;
+                  }
 
                   onEdit();
 
@@ -1256,11 +1280,11 @@ export function MessageBubble({
                 onClick={(event) => {
                   event.stopPropagation();
 
-                  if (message.id.startsWith("temp-")) {
+                  if (!message.id) {
                     return;
                   }
 
-                  handleDelete();
+                  setDeleteMsg(true);
 
                   closeActions();
                 }}

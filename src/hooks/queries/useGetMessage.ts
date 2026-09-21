@@ -3,7 +3,7 @@ import { getMessages } from "@/api/message.api";
 
 export const useGetMessageQuery = (id: string, limit: string, auth = false) => {
   return useInfiniteQuery({
-    queryKey: ["messages", id, auth],
+    queryKey: ["messages", id],
 
     queryFn: ({ pageParam }) => {
       return getMessages(id, limit, pageParam ?? "");

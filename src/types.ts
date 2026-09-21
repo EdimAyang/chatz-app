@@ -106,6 +106,7 @@ export interface MessageResponse {
     };
   };
   messages: {
+    clientMessageId: string;
     id: string;
     conversationId: string;
     senderId: string;
@@ -122,7 +123,7 @@ export interface MessageResponse {
     attachmentUrl: string | null;
     attachmentPublicId: string | null;
     mimeType: string | null;
-    status?:MessageStatus;
+    status?: MessageStatus;
     reactions?: {
       userId: string;
       emoji: string;
@@ -262,13 +263,13 @@ export interface CreateConversationResponse {
 
 export type MessageStatus = "sending" | "sent" | "isRead" | "failed";
 
-export interface  ChatMessage {
-  id: string;
-  clientMessageId?: string,
+export interface ChatMessage {
+  id?: string;
+  clientMessageId?: string;
   conversationId: string;
   senderId: string;
   message: string;
-  fileName?:string;
+  fileName?: string;
 
   isRead: boolean;
   readAt: string | null;
@@ -283,7 +284,6 @@ export interface  ChatMessage {
   duration: number | null;
 
   messageType: MessageType;
-  
 
   attachmentUrl: string | null;
   attachmentPublicId: string | null;

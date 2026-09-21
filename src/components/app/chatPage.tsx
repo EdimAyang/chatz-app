@@ -17,7 +17,7 @@ import { useGetMessageQuery } from "@/hooks/queries/useGetMessage";
 import { useUserProfile } from "@/store/auth.store";
 import {
   useWebSocketStore,
-  type CachedMessages,
+  // type CachedMessages,
 } from "@/store/websocket.store";
 import { formatMessageDate, formatTime } from "@/utils/dates";
 import { useGetUserQuery } from "#/hooks/queries/useUsers";
@@ -36,8 +36,8 @@ import {
 import { useInfiniteScroll } from "#/hooks/useInfiniteScroll";
 // import type { MessageRendererProps } from "./messageRenderer";
 import type { ChatMessage, MessageStatus } from "#/types";
-import { addPendingAction } from "#/lib/offline/messageQueue";
-import { queryClient } from "#/lib/query-client";
+// import { addPendingAction } from "#/lib/offline/messageQueue";
+// import { queryClient } from "#/lib/query-client";
 
 type ChatPageProps = {
   conversationId?: string;
@@ -81,19 +81,11 @@ export default function ChatPage({
     return () => mediaQuery.removeEventListener("change", updateMobile);
   }, []);
 
-  const refreshChatData = () => {
-    void queryClient.invalidateQueries({ queryKey: ["messages"] });
-  };
-
-  useEffect(() => {
-    refreshChatData();
-  }, []);
-
   useEffect(() => {
     if (createdConversationId) {
-      navigate(`${PATHS.CHAT.CHAT(conversationId ?? "")}`);
+      navigate(PATHS.CHAT.CHAT(createdConversationId), { replace: true });
     }
-  }, [createdConversationId]);
+  }, [createdConversationId, navigate]);
 
   useEffect(() => {
     const handleOnline = () => setIsNetworkOnline(true);
@@ -224,9 +216,13 @@ export default function ChatPage({
     [handleBottomScroll, handleInfiniteScroll],
   );
 
+  const handleBack = () => {
+    navigate(-1);
+  };
+
   const header = userData ? (
     <Header>
-      <Back onClick={() => window.history.back()} aria-label="Back">
+      <Back onClick={() => handleBack()} aria-label="Back">
         <ArrowLeft size={20} />
       </Back>
       <Avatar
@@ -250,7 +246,7 @@ export default function ChatPage({
     </Header>
   ) : (
     <Header>
-      <Back onClick={() => window.history.back()} aria-label="Back">
+      <Back onClick={() => handleBack()} aria-label="Back">
         <ArrowLeft size={20} />
       </Back>
       <Avatar
@@ -276,74 +272,75 @@ export default function ChatPage({
 
   console.log(deleteMessage);
 
-  const handleDelete = async () => {
-    const clientActionId = crypto.randomUUID();
+  // const handleDelete = async () => {
+  //   const clientActionId = crypto.randomUUID();
 
-    // ----------------------------------------
-    // 1. UPDATE UI IMMEDIATELY
-    // ----------------------------------------
+  //   // ----------------------------------------
+  //   // 1. UPDATE UI IMMEDIATELY
+  //   // ----------------------------------------
 
-    queryClient.setQueryData<CachedMessages>(
-      ["messages", deleteMessage?.conversationId],
-      (old) => {
-        if (!old) return old;
+  //   queryClient.setQueryData<CachedMessages>(
+  //     ["messages", deleteMessage?.conversationId],
+  //     (old) => {
+  //       if (!old) return old;
 
-        return {
-          ...old,
-          pages: old.pages.map((page) => ({
-            ...page,
-            messages: page.messages.map((message) =>
-              message.id === deleteMessage?.id
-                ? {
-                    ...message,
-                    isDeleted: true,
-                    deletedAt: new Date().toISOString(),
-                  }
-                : message,
-            ),
-          })),
-        };
-      },
-    );
+  //       return {
+  //         ...old,
+  //         pages: old.pages.map((page) => ({
+  //           ...page,
+  //           messages: page.messages.map((msg) =>
+  //             msg.id === deleteMessage?.id
+  //               ? {
+  //                   ...msg,
+  //                   isDeleted: true,
+  //                   deletedAt: new Date().toISOString(),
+  //                 }
+  //               : msg,
+  //           ),
+  //         })),
+  //       };
+  //     },
+  //   );
 
-    // ----------------------------------------
-    // 2. SAVE TO OFFLINE OUTBOX
-    // ----------------------------------------
+  //   // ----------------------------------------
+  //   // 2. SAVE TO OFFLINE OUTBOX
+  //   // ----------------------------------------
 
-    await addPendingAction({
-      clientActionId,
-      type: "DELETE_MESSAGE",
-      conversationId: deleteMessage?.conversationId as string,
-      messageId: deleteMessage?.id,
+  //   await addPendingAction({
+  //     clientActionId,
+  //     type: "DELETE_MESSAGE",
+  //     conversationId: deleteMessage?.conversationId as string,
+  //     messageId: deleteMessage?.id,
 
-      createdAt: new Date().toISOString(),
-    });
+  //     createdAt: new Date().toISOString(),
+  //   });
 
-    // ----------------------------------------
-    // 3. SEND IF ONLINE
-    // ----------------------------------------
+  //   // ----------------------------------------
+  //   // 3. SEND IF ONLINE
+  //   // ----------------------------------------
 
-    const sent = send({
-      type: SocketEvent.DELETE_MESSAGE,
+  //   const sent = send({
+  //     type: SocketEvent.DELETE_MESSAGE,
 
-      conversationId: deleteMessage?.conversationId,
-      messageId: deleteMessage?.id,
-    });
+  //     conversationId: deleteMessage?.conversationId,
+  //     messageId: deleteMessage?.id,
+  //   });
 
-    if (!sent) {
-      console.log("📦 Delete saved to offline outbox");
-    }
+  //   if (!sent) {
+  //     console.log("📦 Delete saved to offline outbox");
+  //   }
 
-    // ----------------------------------------
-    // 4. CLEAN UI
-    // ----------------------------------------
+  //   // ----------------------------------------
+  //   // 4. CLEAN UI
+  //   // ----------------------------------------
 
-    setDeleteMessage(null);
-    setEditingMessage(null);
-  };
+  //   setDeleteMessage(null);
+  //   setEditingMessage(null);
+  // };
 
   return (
     <ChatLayout>
+
       {isUserLoading || isLoading ? (
         <>
           <ChatHeaderSkeleton />
@@ -367,7 +364,7 @@ export default function ChatPage({
                     formatMessageDate(m.createdAt);
 
                 return (
-                  <Fragment key={m.id}>
+                  <Fragment key={m.clientMessageId ?? m.id}>
                     {showDate && (
                       <DateDiv>
                         <DateChip>{formatMessageDate(m.createdAt)}</DateChip>
@@ -379,25 +376,24 @@ export default function ChatPage({
                       message={m}
                       mine={m.senderId === profile?.data.id}
                       onEdit={(message) => {
-                        if (message.id.startsWith("temp-")) {
+                        if (!message.id) {
                           return;
                         }
                         setEditingMessage(message);
                         setReplyingTo(null);
                       }}
                       onReply={(message) => {
-                        if (message.id.startsWith("temp-")) {
+                        if (!message.id) {
                           return;
                         }
                         setReplyingTo(message);
                         setEditingMessage(null);
                       }}
                       onDelete={(message) => {
-                        if (message.id.startsWith("temp-")) {
+                        if (!message.id) {
                           return;
                         }
                         setDeleteMessage(message);
-                        handleDelete();
                         setEditingMessage(null);
                         setReplyingTo(null);
                       }}
@@ -623,3 +619,4 @@ const UnreadBtn = styled(motion.button)`
   box-shadow: ${({ theme }) => theme.shadows.lg};
   z-index: 8;
 `;
+
