@@ -29,6 +29,7 @@ import {
   useUpdateProfileAvatar,
 } from "@/hooks/mutations/useUpdateProfile";
 import toast from "react-hot-toast";
+import { useNavigate } from "react-router-dom";
 
 type FieldKey = "username" | "email" | "phone";
 
@@ -39,6 +40,12 @@ const Profile = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
+
+  const navigate = useNavigate();
+
+  const handleBack = () => {
+    navigate(-1);
+  };
 
   const values = {
     username: profile?.data?.username || "@alexmorgan",
@@ -136,7 +143,7 @@ const Profile = () => {
   return (
     <>
       <Header>
-        <Back onClick={() => window.history.back()} aria-label="Back">
+        <Back onClick={() => handleBack()} aria-label="Back">
           <ArrowLeft size={20} />
         </Back>
         <Title>Profile</Title>
@@ -275,7 +282,6 @@ export default Profile;
 const Wrapper = styled.div`
   overflow: auto;
   height: 100vh;
-  
 `;
 
 const ProfileForm = styled.form`

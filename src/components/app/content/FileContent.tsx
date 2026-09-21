@@ -18,7 +18,7 @@ interface FileContentProps {
   isRead: boolean;
   status?: MessageStatus;
   isDeleted: boolean;
-  deleteTime: string;
+   deleteTime: string | undefined;
 }
 
 export const FileContent = ({

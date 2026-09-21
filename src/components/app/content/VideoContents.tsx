@@ -20,7 +20,7 @@ interface VideoContentProps {
   isRead: boolean;
   status: MessageStatus;
   isDeleted?: boolean;
-  deleteTime: string;
+  deleteTime: string | undefined;
   onViewVideo: () => void;
   viewingVideo: boolean;
   setViewingVideo: Dispatch<SetStateAction<boolean>>;

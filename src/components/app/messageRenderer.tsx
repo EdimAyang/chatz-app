@@ -35,6 +35,7 @@ export const MessageRenderer = ({
 }: MessageRendererProps) => {
   const { send } = useWebSocketStore();
   const { user } = useAuthStore();
+
   const [viewingImage, setViewingImage] = useState(false);
   const [viewingVideo, setViewingVideo] = useState(false);
 
@@ -44,13 +45,20 @@ export const MessageRenderer = ({
 
     status: message.status,
 
-    message: message,
+    message,
 
     onReply: () => onReply(message),
 
     onEdit:
-      mine && message.messageType === MessageType.TEXT && !message.isDeleted
+      mine &&
+      message.messageType === MessageType.TEXT &&
+      !message.isDeleted
         ? () => onEdit(message)
+        : undefined,
+
+    onDelete:
+      mine && !message.isDeleted
+        ? () => onDelete(message)
         : undefined,
 
     replyTo: message.replyTo,
@@ -64,16 +72,10 @@ export const MessageRenderer = ({
         ? formatTime(message.editedAt)
         : undefined,
 
-    onDelete: mine && !message.isDeleted ? () => onDelete(message) : undefined,
-
     reactions: message.reactions,
 
     onReact: async (emoji: string) => {
       const clientActionId = crypto.randomUUID();
-
-      // ----------------------------------------
-      // 1. UPDATE UI IMMEDIATELY
-      // ----------------------------------------
 
       queryClient.setQueryData<CachedMessages>(
         ["messages", message.conversationId],
@@ -92,21 +94,19 @@ export const MessageRenderer = ({
                 const reactions = msg.reactions ?? [];
 
                 const existingReaction = reactions.find(
-                  (reaction: { userId: string; emoji: string }) =>
-                    reaction?.userId === user?.id,
+                  (reaction:{userId:string, emoji:string}) => reaction.userId === user?.id,
                 );
 
                 if (existingReaction) {
                   return {
                     ...msg,
-                    reactions: reactions.map(
-                      (reaction: { userId: string; emoji: string }) =>
-                        reaction.userId === user?.id
-                          ? {
-                              ...reaction,
-                              emoji,
-                            }
-                          : reaction,
+                    reactions: reactions.map((reaction:{userId:string, emoji:string}) =>
+                      reaction.userId === user?.id
+                        ? {
+                            ...reaction,
+                            emoji,
+                          }
+                        : reaction,
                     ),
                   };
                 }
@@ -127,13 +127,8 @@ export const MessageRenderer = ({
         },
       );
 
-      // ----------------------------------------
-      // 2. SAVE TO OFFLINE OUTBOX
-      // ----------------------------------------
-
       await addPendingAction({
         clientActionId,
-
         type: "REACTION_ADD",
 
         conversationId: message.conversationId,
@@ -144,18 +139,12 @@ export const MessageRenderer = ({
         createdAt: new Date().toISOString(),
       });
 
-      // ----------------------------------------
-      // 3. SEND IF ONLINE
-      // ----------------------------------------
-
       const sent = send({
         type: SocketEvent.MESSAGE_REACTION,
-
         conversationId: message.conversationId,
         messageId: message.id,
         emoji,
         action: "add",
-
         clientActionId,
       });
 
@@ -166,10 +155,6 @@ export const MessageRenderer = ({
 
     onRemoveReaction: async (emoji: string) => {
       const clientActionId = crypto.randomUUID();
-
-      // ----------------------------------------
-      // 1. UPDATE UI IMMEDIATELY
-      // ----------------------------------------
 
       queryClient.setQueryData<CachedMessages>(
         ["messages", message.conversationId],
@@ -188,9 +173,10 @@ export const MessageRenderer = ({
                 return {
                   ...msg,
                   reactions: (msg.reactions ?? []).filter(
-                    (reaction: { userId: string; emoji: string }) =>
+                    (reaction:{userId:string, emoji:string}) =>
                       !(
-                        reaction.userId === user?.id && reaction.emoji === emoji
+                        reaction.userId === user?.id &&
+                        reaction.emoji === emoji
                       ),
                   ),
                 };
@@ -200,13 +186,8 @@ export const MessageRenderer = ({
         },
       );
 
-      // ----------------------------------------
-      // 2. SAVE TO OFFLINE OUTBOX
-      // ----------------------------------------
-
       await addPendingAction({
         clientActionId,
-
         type: "REACTION_REMOVE",
 
         conversationId: message.conversationId,
@@ -217,18 +198,12 @@ export const MessageRenderer = ({
         createdAt: new Date().toISOString(),
       });
 
-      // ----------------------------------------
-      // 3. SEND IF ONLINE
-      // ----------------------------------------
-
       const sent = send({
         type: SocketEvent.MESSAGE_REACTION,
-
         conversationId: message.conversationId,
         messageId: message.id,
         emoji,
         action: "remove",
-
         clientActionId,
       });
 
@@ -243,26 +218,21 @@ export const MessageRenderer = ({
       return (
         <MessageBubble
           {...sharedProps}
-          message={message}
-          mine={mine}
-          currentUserId={user?.id}
           onEdit={() => {
-            if (message.id.startsWith("temp-")) return;
+            if (!message.id) return;
 
-            onEdit?.(message);
+            onEdit(message);
           }}
           onReply={() => {
-            if (message.id.startsWith("temp-")) return;
+            if (!message.id) return;
 
-            onReply?.(message);
+            onReply(message);
           }}
+          onDelete={() => {
+            if (!message.id) return;
 
-           onDelete={() => {
-            if (message.id.startsWith("temp-")) return;
-
-            onDelete?.(message);
+            onDelete(message);
           }}
-
         >
           <TextContent
             status={status}
@@ -276,7 +246,9 @@ export const MessageRenderer = ({
             isRead={message.isRead}
             isDeleted={message.isDeleted}
             deletedTime={
-              message.deletedAt ? formatTime(message.deletedAt) : undefined
+              message.deletedAt
+                ? formatTime(message.deletedAt)
+                : undefined
             }
             isEdited={!message.isDeleted && Boolean(message.editedAt)}
             editedTime={
@@ -292,31 +264,31 @@ export const MessageRenderer = ({
       return (
         <MessageBubble
           {...sharedProps}
-          message={message}
-          mine={mine}
-          currentUserId={user?.id}
           onEdit={() => {
-            if (message.id.startsWith("temp-")) return;
+            if (!message.id) return;
 
-            onEdit?.(message);
+            onEdit(message);
           }}
           onReply={() => {
-            if (message.id.startsWith("temp-")) return;
+            if (!message.id) return;
 
-            onReply?.(message);
+            onReply(message);
           }}
+          onDelete={() => {
+            if (!message.id) return;
 
-           onDelete={() => {
-            if (message.id.startsWith("temp-")) return;
-
-            onDelete?.(message);
+            onDelete(message);
           }}
         >
           <ImageContent
             onClick={() => setViewingImage(true)}
             setViewingImage={setViewingImage}
             viewingImage={viewingImage}
-            deleteTime={formatTime(message.deletedAt!)}
+            deleteTime={
+              message.deletedAt
+                ? formatTime(message.deletedAt)
+                : undefined
+            }
             isDeleted={message.isDeleted}
             src={message.attachmentUrl ?? ""}
             mine={mine}
@@ -330,33 +302,33 @@ export const MessageRenderer = ({
       return (
         <MessageBubble
           {...sharedProps}
-          message={message}
-          mine={mine}
-          currentUserId={user?.id}
           onEdit={() => {
-            if (message.id.startsWith("temp-")) return;
+            if (!message.id) return;
 
-            onEdit?.(message);
+            onEdit(message);
           }}
           onReply={() => {
-            if (message.id.startsWith("temp-")) return;
+            if (!message.id) return;
 
-            onReply?.(message);
+            onReply(message);
           }}
+          onDelete={() => {
+            if (!message.id) return;
 
-           onDelete={() => {
-            if (message.id.startsWith("temp-")) return;
-
-            onDelete?.(message);
+            onDelete(message);
           }}
         >
           <VideoContent
             viewingVideo={viewingVideo}
             setViewingVideo={setViewingVideo}
             onViewVideo={() => setViewingVideo(true)}
-            deleteTime={formatTime(message.deletedAt!)}
+            deleteTime={
+              message.deletedAt
+                ? formatTime(message.deletedAt)
+                : undefined
+            }
             isDeleted={message.isDeleted}
-            status={status!}
+            status={status}
             src={message.attachmentUrl ?? ""}
             mine={mine}
             time={formatTime(message.createdAt)}
@@ -369,28 +341,28 @@ export const MessageRenderer = ({
       return (
         <MessageBubble
           {...sharedProps}
-          message={message}
-          mine={mine}
-          currentUserId={user?.id}
           onEdit={() => {
-            if (message.id.startsWith("temp-")) return;
+            if (!message.id) return;
 
-            onEdit?.(message);
+            onEdit(message);
           }}
           onReply={() => {
-            if (message.id.startsWith("temp-")) return;
+            if (!message.id) return;
 
-            onReply?.(message);
+            onReply(message);
           }}
+          onDelete={() => {
+            if (!message.id) return;
 
-           onDelete={() => {
-            if (message.id.startsWith("temp-")) return;
-
-            onDelete?.(message);
+            onDelete(message);
           }}
         >
           <AudioContent
-            deleteTime={formatTime(message.deletedAt!)}
+            deleteTime={
+              message.deletedAt
+                ? formatTime(message.deletedAt)
+                : undefined
+            }
             isDeleted={message.isDeleted}
             mine={mine}
             audio={message.attachmentUrl ?? ""}
@@ -405,28 +377,28 @@ export const MessageRenderer = ({
       return (
         <MessageBubble
           {...sharedProps}
-          message={message}
-          mine={mine}
-          currentUserId={user?.id}
           onEdit={() => {
-            if (message.id.startsWith("temp-")) return;
+            if (!message.id) return;
 
-            onEdit?.(message);
+            onEdit(message);
           }}
           onReply={() => {
-            if (message.id.startsWith("temp-")) return;
+            if (!message.id) return;
 
-            onReply?.(message);
+            onReply(message);
           }}
+          onDelete={() => {
+            if (!message.id) return;
 
-           onDelete={() => {
-            if (message.id.startsWith("temp-")) return;
-
-            onDelete?.(message);
+            onDelete(message);
           }}
         >
           <FileContent
-            deleteTime={formatTime(message.deletedAt!)}
+            deleteTime={
+              message.deletedAt
+                ? formatTime(message.deletedAt)
+                : undefined
+            }
             isDeleted={message.isDeleted}
             message={message}
             mine={mine}
