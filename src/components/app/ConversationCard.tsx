@@ -11,6 +11,8 @@ import { Avatar } from "./Avatar";
 import { Badge } from "./Badge";
 import { formatTime } from "@/utils/dates";
 import { PATHS } from "#/lib/paths";
+import { useWebSocketStore } from "#/store/websocket.store";
+import { useUserProfile } from "#/store/auth.store";
 
 interface CardType {
   id: string;
@@ -42,8 +44,13 @@ export function ConversationCard({
 }) {
   const x = useMotionValue(0);
   const bgOpacity = useTransform(x, [-120, -40, 0], [1, 0.7, 0]);
+  const { profile } = useUserProfile();
 
-  console.log(c);
+  const { typingKey, typingUserId } = useWebSocketStore();
+
+  const isTyping =
+    typingKey === c.id && typingUserId !== profile?.data?.id;
+
   return (
     <Outer>
       <motion.div
@@ -87,7 +94,7 @@ export function ConversationCard({
         >
           <Avatar
             src={c?.recipient?.avatarUrl ?? ""}
-            alt={c?.recipient?.username.charAt(0) ?? ''}
+            alt={c?.recipient?.username.charAt(0) ?? ""}
             size={54}
             online={c?.recipient?.isOnline ?? ""}
             userId={c?.recipient?.id ?? ""}
@@ -100,7 +107,7 @@ export function ConversationCard({
               </Time>
             </TopRow>
             <BottomRow>
-              <Last>{c.lastMessage?.message ?? ""}</Last>
+             {isTyping ?  <Last>typing...</Last> :  <Last>{c.lastMessage?.message ?? ""}</Last>}
               {c.unreadCount > 0 && <Badge>{c?.unreadCount}</Badge>}
             </BottomRow>
           </Meta>
