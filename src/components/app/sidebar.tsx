@@ -51,7 +51,7 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
     fetchNextPage,
   });
   const { profile } = useUserProfile();
-  const { isConnected } = useWebSocketStore();
+  const { isConnected, typingKey, typingUserId } = useWebSocketStore();
 
   // Combine all pages into one array
   const conversations = useMemo(() => {
@@ -59,6 +59,7 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
 
     return result;
   }, [data]);
+
 
   const handleSearchClick = async (userId: string) => {
     const response = await getConversationBetween(userId);
@@ -195,29 +196,35 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
               >
                 {item?.recipient?.avatarUrl ? (
                   <Avatar
-                    src={item?.recipient?.avatarUrl ?? ''}
-                    alt={item?.recipient?.username ?? ''}
+                    src={item?.recipient?.avatarUrl ?? ""}
+                    alt={item?.recipient?.username ?? ""}
                     size={54}
                     online={item.recipient.isOnline ?? false}
-                    userId={item.recipient.id ?? ''}
+                    userId={item.recipient.id ?? ""}
                   />
                 ) : (
                   <Initials>
-                    {item?.recipient?.username?.charAt(0).toUpperCase() ?? ''}
+                    {item?.recipient?.username?.charAt(0).toUpperCase() ?? ""}
                   </Initials>
                 )}
 
                 {!collapsed && (
                   <ConversationContent>
                     <ConversationTop>
-                      <UserName>{item?.recipient?.username ?? ''}</UserName>
+                      <UserName>{item?.recipient?.username ?? ""}</UserName>
                       <Time $unread={item?.unreadCount > 0}>
                         {formatTime(item?.updatedAt ?? "")}
                       </Time>
                     </ConversationTop>
 
                     <BottomRow>
-                      <Last>{item.lastMessage?.message ?? ""}</Last>
+                      {typingKey === item.id &&
+                      typingUserId !== profile?.data.id ? (
+                        <Last>typing...</Last>
+                      ) : (
+                        <Last>{item.lastMessage?.message ?? ""}</Last>
+                      )}
+
                       {item.unreadCount > 0 && (
                         <Badge>{item?.unreadCount}</Badge>
                       )}
@@ -402,13 +409,11 @@ const ConversationSidebar = styled.section<{
    * TABLET
    */
   @media (min-width: 768px) and (max-width: 1023px) {
-
     width: ${({ $collapsed }) => ($collapsed ? "0px" : "320px")};
 
     max-width: ${({ $collapsed }) => ($collapsed ? "0px" : "320px")};
 
     min-width: ${({ $collapsed }) => ($collapsed ? "0px" : "320px")};
-   
   }
 `;
 

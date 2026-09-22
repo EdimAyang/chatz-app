@@ -59,8 +59,6 @@ export default function ChatPage({
   const { data, isLoading, isFetchingNextPage, hasNextPage, fetchNextPage } =
     useGetMessageQuery(conversationId ?? "", "100");
 
-
-    
   const { data: userData, isLoading: isUserLoading } = useGetUserQuery(
     recipientId ?? "",
   );
@@ -117,6 +115,7 @@ export default function ChatPage({
 
   const { typingKey, typingUserId, send, isConnected, isConnecting } =
     useWebSocketStore();
+
   const connectionIsHealthy = isNetworkOnline && isConnected;
   const connectionLabel = !isNetworkOnline
     ? "Offline"
@@ -220,8 +219,8 @@ export default function ChatPage({
   );
 
   const handleBack = () => {
-    if(!conversationId) return
-     navigate(PATHS.CHAT.HOME);
+    if (!conversationId) return;
+    navigate(PATHS.CHAT.HOME);
   };
 
   const header = userData ? (
@@ -274,7 +273,7 @@ export default function ChatPage({
     </Header>
   );
 
-  console.log(deleteMessage);
+  // console.log(deleteMessage);
 
   // const handleDelete = async () => {
   //   const clientActionId = crypto.randomUUID();
@@ -344,7 +343,6 @@ export default function ChatPage({
 
   return (
     <ChatLayout>
-
       {isUserLoading || isLoading ? (
         <>
           <ChatHeaderSkeleton />
@@ -514,8 +512,8 @@ const Back = styled.button`
   align-items: center;
   justify-content: center;
 
-   @media (min-width: 700px) {
-    display:none;
+  @media (min-width: 700px) {
+    display: none;
   }
 `;
 const Who = styled.div`
@@ -627,4 +625,3 @@ const UnreadBtn = styled(motion.button)`
   box-shadow: ${({ theme }) => theme.shadows.lg};
   z-index: 8;
 `;
-
