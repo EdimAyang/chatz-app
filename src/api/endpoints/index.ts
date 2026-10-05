@@ -6,6 +6,8 @@ export const ENDPOINTS = {
   REGISTER: "auth/register",
   FORGOT_PASSWORD: "auth/forgot-password",
   RESET_PASSWORD: "auth/reset-password",
+  COMPLETE_SIGNUP: "auth/signup/complete",
+  START_SIGNUP: "auth/signup/start",
 
   //profile
   PROFILE: (id: string) => `users/${id}`,
