@@ -78,16 +78,9 @@ const ResetPassword = () => {
     <MobileFrame>
       <Wrap>
         <H1>Reset password</H1>
-        <Sub>Enter the code you received and choose a new password.</Sub>
+        <Sub>Enter a new password.</Sub>
 
         <Form onSubmit={handleSubmit(onSubmit)}>
-          {/* <Input
-            label="Reset code"
-            placeholder="123456"
-            icon={<KeyRound size={18} />}
-            {...register("code")}
-            error={errors.code?.message}
-          /> */}
 
           <Input
             label="New password"

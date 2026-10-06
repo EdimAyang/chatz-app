@@ -1,4 +1,4 @@
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import styled from "styled-components";
 import {  MailIcon, User } from "lucide-react";
 import { MobileFrame } from "@/components/app/MobileFrame";
@@ -51,7 +51,7 @@ const TextLink = styled(Link)`
 `;
 
 const StartSignup = () => {
-  const navigate = useNavigate();
+//   const navigate = useNavigate();
   const startSignupMutation = useStartSignup();
 
   const {
@@ -67,7 +67,7 @@ const StartSignup = () => {
       email: data.email,
       name: data.name,
     });
-    navigate(PATHS.AUTH.COMPLETE_SIGNUP, { replace: true });
+    // navigate(PATHS.AUTH.COMPLETE_SIGNUP, { replace: true });
   };
 
   return (
