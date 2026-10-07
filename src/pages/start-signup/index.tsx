@@ -1,17 +1,15 @@
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Link } from "react-router-dom";
 import styled from "styled-components";
-import { Lock } from "lucide-react";
+import {  MailIcon, User } from "lucide-react";
 import { MobileFrame } from "@/components/app/MobileFrame";
 import { Button } from "@/components/app/Button";
 import { Input } from "@/components/app/Input";
 import { PATHS } from "@/lib/paths";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import {
-  resetPasswordSchema,
-  type ResetPasswordFormData,
-} from "@/schema/reset-password.schema";
-import { useResetPassword } from "@/hooks/mutations/useResetPassword";
+import { startSignupSchema, type StartSignupFormData } from "@/schema/start-signup.schema";
+import { useStartSignup } from "@/hooks/mutations/useRegister";
+
 
 const Wrap = styled.div`
   flex: 1;
@@ -52,61 +50,57 @@ const TextLink = styled(Link)`
   font-weight: 600;
 `;
 
-const ResetPassword = () => {
-  const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const token = searchParams.get("token");
-  const resetPasswordMutation = useResetPassword();
+const StartSignup = () => {
+//   const navigate = useNavigate();
+  const startSignupMutation = useStartSignup();
 
   const {
     register,
     handleSubmit,
     formState: { errors },
-  } = useForm<ResetPasswordFormData>({
-    resolver: zodResolver(resetPasswordSchema),
+  } = useForm<StartSignupFormData>({
+    resolver: zodResolver(startSignupSchema),
   });
 
-  const onSubmit = async (data: ResetPasswordFormData) => {
-    await resetPasswordMutation.mutateAsync({
-      token: token || "",
-      password: data.password,
+  const onSubmit = async (data: StartSignupFormData) => {
+    await startSignupMutation.mutateAsync({
+      email: data.email,
+      name: data.name,
     });
-    navigate(PATHS.AUTH.LOGIN, { replace: true });
+    // navigate(PATHS.AUTH.COMPLETE_SIGNUP, { replace: true });
   };
 
   return (
     <MobileFrame>
       <Wrap>
-        <H1>Reset password</H1>
-        <Sub>Enter a new password.</Sub>
+        <H1>Start Signup</H1>
+        <Sub>Enter your email and name to get started.</Sub>
 
         <Form onSubmit={handleSubmit(onSubmit)}>
 
           <Input
-            label="New password"
-            placeholder="••••••••"
-            icon={<Lock size={18} />}
-            toggleVisibility
-            {...register("password")}
-            error={errors.password?.message}
+            label="Email"
+            placeholder="you@example.com"
+            icon={<MailIcon size={18} />}
+            {...register("email")}
+            error={errors.email?.message}
           />
 
           <Input
-            label="Confirm password"
-            placeholder="••••••••"
-            icon={<Lock size={18} />}
-            toggleVisibility
-            {...register("confirmPassword")}
-            error={errors.confirmPassword?.message}
+            label="Name"
+            placeholder="Your Name"
+            icon={<User size={18} />}
+            {...register("name")}
+            error={errors.name?.message}
           />
 
           <Button
             full
             style={{ marginTop: 8 }}
             type="submit"
-            isLoading={resetPasswordMutation.isPending}
+            isLoading={startSignupMutation.isPending}
           >
-            Reset password
+            Continue
           </Button>
         </Form>
 
@@ -118,4 +112,4 @@ const ResetPassword = () => {
   );
 };
 
-export default ResetPassword;
+export default StartSignup;

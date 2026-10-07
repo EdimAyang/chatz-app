@@ -8,10 +8,11 @@ import { PATHS } from "@/lib/paths";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
-  resetPasswordSchema,
-  type ResetPasswordFormData,
-} from "@/schema/reset-password.schema";
-import { useResetPassword } from "@/hooks/mutations/useResetPassword";
+  completeSignupSchema,
+  type CompleteSignupFormData,
+} from "@/schema/complete-signup.schema";
+import { useCompleteSignup } from "#/hooks/mutations/useRegister";
+
 
 const Wrap = styled.div`
   flex: 1;
@@ -52,38 +53,39 @@ const TextLink = styled(Link)`
   font-weight: 600;
 `;
 
-const ResetPassword = () => {
+const CompleteSignupPage = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const token = searchParams.get("token");
-  const resetPasswordMutation = useResetPassword();
+  const completeSignupMutation = useCompleteSignup();
 
   const {
     register,
     handleSubmit,
     formState: { errors },
-  } = useForm<ResetPasswordFormData>({
-    resolver: zodResolver(resetPasswordSchema),
+  } = useForm<CompleteSignupFormData>({
+    resolver: zodResolver(completeSignupSchema),
   });
 
-  const onSubmit = async (data: ResetPasswordFormData) => {
-    await resetPasswordMutation.mutateAsync({
+  const onSubmit = async (data: CompleteSignupFormData) => {
+    await completeSignupMutation.mutateAsync({
       token: token || "",
       password: data.password,
+      confirmPassword: data.confirmPassword,
     });
-    navigate(PATHS.AUTH.LOGIN, { replace: true });
+    navigate(PATHS.CHAT.HOME, { replace: true });
   };
 
   return (
     <MobileFrame>
       <Wrap>
-        <H1>Reset password</H1>
-        <Sub>Enter a new password.</Sub>
+        <H1>Complete Signup</H1>
+        <Sub>Almost done!</Sub>
 
         <Form onSubmit={handleSubmit(onSubmit)}>
 
           <Input
-            label="New password"
+            label="password"
             placeholder="••••••••"
             icon={<Lock size={18} />}
             toggleVisibility
@@ -104,9 +106,9 @@ const ResetPassword = () => {
             full
             style={{ marginTop: 8 }}
             type="submit"
-            isLoading={resetPasswordMutation.isPending}
+            isLoading={completeSignupMutation.isPending}
           >
-            Reset password
+            Complete signup
           </Button>
         </Form>
 
@@ -118,4 +120,4 @@ const ResetPassword = () => {
   );
 };
 
-export default ResetPassword;
+export default CompleteSignupPage;

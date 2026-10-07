@@ -21,6 +21,9 @@ import { PATHS } from "../lib/paths";
 import ProtectedRoute from "./ProtectedRoute";
 import GlobalLayout from "#/layouts/globalLayout";
 import SearchScreen from "#/pages/search";
+import StartSignup from "#/pages/start-signup";
+import CompleteSignupPage from "#/pages/complete-signup";
+
 
 export const router = createBrowserRouter([
   {
@@ -51,6 +54,14 @@ export const router = createBrowserRouter([
         path: PATHS.ONBOARDING.ONBOARDING,
         element: <OnboardingPage />,
       },
+      {
+        path: PATHS.AUTH.START_SIGNUP,
+        element: <StartSignup />,
+      },
+      {
+        path: PATHS.AUTH.COMPLETE_SIGNUP,
+        element: <CompleteSignupPage />,
+      }
     ],
   },
 

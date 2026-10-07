@@ -11,6 +11,8 @@ export const PATHS = {
     REGISTER: "/register",
     FORGOT_PASSWORD: "/forgot-password",
     RESET_PASSWORD: "/reset-password",
+    START_SIGNUP: "/start-signup",
+    COMPLETE_SIGNUP: "/complete-signup",
   },
 
   //pages

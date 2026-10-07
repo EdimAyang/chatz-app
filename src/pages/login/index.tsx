@@ -155,7 +155,7 @@ const Login = () => {
           Continue with Google
         </Google> */}
         <Footer>
-          <TextLink to="/register">Sign up</TextLink> if you don't have an
+          <TextLink to={PATHS.AUTH.START_SIGNUP}>Sign up</TextLink> if you don't have an
           account
         </Footer>
       </Wrap>
