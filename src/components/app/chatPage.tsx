@@ -23,6 +23,7 @@ import React, {
 } from "react";
 import { createPortal } from "react-dom";
 import styled, { keyframes } from "styled-components";
+import toast from "react-hot-toast";
 import { Avatar } from "@/components/app/Avatar";
 // import { MobileFrame } from "@/components/app/MobileFrame";
 import { useAudioRecorder } from "#/hooks/useAudioRecorder";
@@ -73,6 +74,8 @@ const chatPage = ({ conversationId, recipientId }: ChatPageProps) => {
   const startOutgoingCall = useCallStore((state) => state.startOutgoingCall);
 
   const resetCall = useCallStore((state) => state.resetCall);
+  const connectWebSocket = useWebSocketStore((state) => state.connect);
+  const callStartInProgressRef = useRef(false);
 
   const [deleteMessage, setDeleteMessage] = useState<ChatMessage | null>(null);
 
@@ -257,39 +260,73 @@ const chatPage = ({ conversationId, recipientId }: ChatPageProps) => {
     navigate(PATHS.CHAT.HOME);
   };
 
-  const handleStartCall = (type: "audio" | "video") => {
-    console.log(type, recipientId!, RecipientId);
+  const handleStartCall = async (type: "audio" | "video") => {
     if (!conversationId || !RecipientId) {
       console.error("A conversation and recipient are required to call.");
       return;
     }
 
-    if (!isConnected) {
-      console.error("Cannot start a call while disconnected.");
-      return;
-    }
-
-    if (callStatus !== "idle") {
+    if (callStatus !== "idle" || callStartInProgressRef.current) {
       console.error("A call is already in progress.");
       return;
     }
 
-    // Update local state before sending to avoid a WebSocket response race.
-    startOutgoingCall({
-      conversationId,
-      recipientId: RecipientId,
-      callType: type,
-    });
+    callStartInProgressRef.current = true;
 
-    const sent = send({
-      type: "CALL_USER",
-      recipientId: RecipientId,
-      conversationId,
-      callType: type === "video" ? "VIDEO" : "VOICE",
-    });
+    try {
+      if (!useWebSocketStore.getState().isConnected) {
+        connectWebSocket();
 
-    if (!sent) {
-      resetCall();
+        const connected = await new Promise<boolean>((resolve) => {
+          let settled = false;
+          let unsubscribe = () => {};
+          const timeout = window.setTimeout(() => finish(false), 5000);
+
+          const finish = (result: boolean) => {
+            if (settled) return;
+            settled = true;
+            window.clearTimeout(timeout);
+            unsubscribe();
+            resolve(result);
+          };
+
+          unsubscribe = useWebSocketStore.subscribe((state) => {
+            if (state.isConnected) finish(true);
+          });
+
+          if (useWebSocketStore.getState().isConnected) {
+            finish(true);
+          }
+        });
+
+        if (!connected) {
+          toast.error("Could not connect to start the call. Please try again.");
+          return;
+        }
+      }
+
+      startOutgoingCall({
+        conversationId,
+        recipientId: RecipientId,
+        callType: type,
+      });
+
+      const sent = useWebSocketStore.getState().send({
+        type: "CALL_USER",
+        recipientId: RecipientId,
+        conversationId,
+        callType: type === "video" ? "VIDEO" : "VOICE",
+      });
+
+      if (!sent) {
+        resetCall();
+        toast.error("Could not start the call. Please try again.");
+      }
+    } catch (error) {
+      console.error("Failed to start call:", error);
+      toast.error("Could not start the call. Please try again.");
+    } finally {
+      callStartInProgressRef.current = false;
     }
   };
 
@@ -500,6 +537,7 @@ export function GlobalCallOverlay() {
   const conversationId = useCallStore((state) => state.conversationId);
   const callType = useCallStore((state) => state.callType);
   const callStatus = useCallStore((state) => state.status);
+  const callError = useCallStore((state) => state.error);
   const callerId = useCallStore((state) => state.callerId);
   const recipientId = useCallStore((state) => state.recipientId);
   const localStream = useCallStore((state) => state.localStream);
@@ -509,6 +547,14 @@ export function GlobalCallOverlay() {
   const navigate = useNavigate();
   const contactId = recipientId ?? callerId;
   const { data: contactData } = useGetUserQuery(contactId ?? "");
+
+  useEffect(() => {
+    if (callStatus !== "error") return;
+
+    toast.error(callError || "The call could not be completed.");
+    closeWebRTC();
+    resetCall();
+  }, [callError, callStatus, resetCall]);
 
   useEffect(() => {
     if (callStatus !== "ended") return;
