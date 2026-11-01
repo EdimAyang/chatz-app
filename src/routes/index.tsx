@@ -92,11 +92,11 @@ export const router = createBrowserRouter([
             element: <SettingsPage />,
           },
           {
-            path: "/chat/:id",
+            path: "/chat/:conversationId",
             element: <ChatPage />,
           },
           {
-            path: "/chat/new/:id",
+            path: "/chat/new/:conversationId",
             element: <NewChat />,
           },
           {

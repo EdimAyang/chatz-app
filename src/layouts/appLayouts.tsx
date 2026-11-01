@@ -4,6 +4,7 @@ import Sidebar from "@/components/app/sidebar";
 import { useState } from "react";
 import { useWhatsNew } from "#/hooks/useWhatsNew";
 import { WhatsNewModal } from "#/components/app/WhatsNewModal";
+import { GlobalCallOverlay } from "@/components/app/chatPage";
 
 const AppLayout = () => {
   const { show, close, update } = useWhatsNew();
@@ -30,6 +31,7 @@ const AppLayout = () => {
           />
         )}
       </Layout>
+      <GlobalCallOverlay />
     </>
   );
 };

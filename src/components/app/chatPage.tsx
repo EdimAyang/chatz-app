@@ -1,5 +1,19 @@
-import { ArrowLeft, ChevronDown, Wifi } from "lucide-react";
 import {
+  ArrowLeft,
+  Camera,
+  ChevronDown,
+  Mic,
+  MicOff,
+  MoreVertical,
+  Phone,
+  PhoneOff,
+  Video,
+  VideoOff,
+  Volume2,
+  VolumeX,
+  Wifi,
+} from "lucide-react";
+import React, {
   Fragment,
   useCallback,
   useLayoutEffect,
@@ -38,21 +52,26 @@ import { useInfiniteScroll } from "#/hooks/useInfiniteScroll";
 import type { ChatMessage, MessageStatus } from "#/types";
 // import { addPendingAction } from "#/lib/offline/messageQueue";
 // import { queryClient } from "#/lib/query-client";
+import { useCallStore } from "@/store/call.store";
+import { closeWebRTC, toggleCamera, toggleMicrophone } from "@/webRTC";
 
 type ChatPageProps = {
   conversationId?: string;
   recipientId?: string;
 };
 
-export default function ChatPage({
-  conversationId,
-  recipientId,
-}: ChatPageProps) {
+const chatPage = ({ conversationId, recipientId }: ChatPageProps) => {
   const { profile } = useUserProfile();
   const [editingMessage, setEditingMessage] = useState<ChatMessage | null>(
     null,
   );
   const [replyingTo, setReplyingTo] = useState<ChatMessage | null>(null);
+
+  const callStatus = useCallStore((state) => state.status);
+
+  const startOutgoingCall = useCallStore((state) => state.startOutgoingCall);
+
+  const resetCall = useCallStore((state) => state.resetCall);
 
   const [deleteMessage, setDeleteMessage] = useState<ChatMessage | null>(null);
 
@@ -65,6 +84,9 @@ export default function ChatPage({
 
   const createdConversationId = useWebSocketStore(
     (state) => state.createdConversationId,
+  );
+  const setCreatedConversationId = useWebSocketStore(
+    (state) => state.setCreatedConversationId,
   );
 
   const navigate = useNavigate();
@@ -82,11 +104,13 @@ export default function ChatPage({
     return () => mediaQuery.removeEventListener("change", updateMobile);
   }, []);
 
-  useMemo(() => {
-    if (createdConversationId) {
-      navigate(PATHS.CHAT.CHAT(createdConversationId));
-    }
-  }, [createdConversationId]);
+  useEffect(() => {
+    if (!createdConversationId) return;
+
+    navigate(PATHS.CHAT.CHAT(createdConversationId));
+
+    setCreatedConversationId(null);
+  }, [createdConversationId, navigate, setCreatedConversationId]);
 
   useEffect(() => {
     const handleOnline = () => setIsNetworkOnline(true);
@@ -188,6 +212,7 @@ export default function ChatPage({
   } = useNewMsgTrigger();
 
   const RecipientAvatar = firstPage?.recipient?.user?.avatarUrl ?? "";
+  const RecipientId = firstPage?.recipient?.user?.id ?? "";
   const RecipientName = firstPage?.recipient?.user?.username ?? "";
   const RecipientLastSeen = firstPage?.recipient?.user?.lastSeen ?? "";
   const RecipientIsOnline = firstPage?.recipient?.user?.isOnline ?? false;
@@ -223,6 +248,42 @@ export default function ChatPage({
     navigate(PATHS.CHAT.HOME);
   };
 
+  const handleStartCall = (type: "audio" | "video") => {
+    console.log(type, recipientId!, RecipientId);
+    if (!conversationId || !RecipientId) {
+      console.error("A conversation and recipient are required to call.");
+      return;
+    }
+
+    if (!isConnected) {
+      console.error("Cannot start a call while disconnected.");
+      return;
+    }
+
+    if (callStatus !== "idle") {
+      console.error("A call is already in progress.");
+      return;
+    }
+
+    // Update local state before sending to avoid a WebSocket response race.
+    startOutgoingCall({
+      conversationId,
+      recipientId: RecipientId,
+      callType: type,
+    });
+
+    const sent = send({
+      type: "CALL_USER",
+      recipientId: RecipientId,
+      conversationId,
+      callType: type === "video" ? "VIDEO" : "VOICE",
+    });
+
+    if (!sent) {
+      resetCall();
+    }
+  };
+
   const header = userData ? (
     <Header>
       <Back onClick={() => handleBack()} aria-label="Back">
@@ -242,6 +303,25 @@ export default function ChatPage({
             : formatTime(userData.data.lastSeen || "")}
         </Status>
       </Who>
+
+      <CallActions>
+        <HeaderCallButton
+          type="button"
+          aria-label="Start voice call"
+          title="Voice call"
+          onClick={() => handleStartCall("audio")}
+        >
+          <Phone size={18} />
+        </HeaderCallButton>
+        <HeaderCallButton
+          type="button"
+          aria-label="Start video call"
+          title="Video call"
+          onClick={() => handleStartCall("video")}
+        >
+          <Video size={19} />
+        </HeaderCallButton>
+      </CallActions>
       <ConnectionBadge $connected={connectionIsHealthy}>
         <Wifi size={15} />
         <span>{connectionLabel}</span>
@@ -266,80 +346,30 @@ export default function ChatPage({
             : formatTime(RecipientLastSeen || "")}
         </Status>
       </Who>
+      <CallActions>
+        <HeaderCallButton
+          type="button"
+          aria-label="Start voice call"
+          title="Voice call"
+          onClick={() => handleStartCall("audio")}
+        >
+          <Phone size={18} />
+        </HeaderCallButton>
+        <HeaderCallButton
+          type="button"
+          aria-label="Start video call"
+          title="Video call"
+          onClick={() => handleStartCall("video")}
+        >
+          <Video size={19} />
+        </HeaderCallButton>
+      </CallActions>
       <ConnectionBadge $connected={connectionIsHealthy}>
         <Wifi size={15} />
         <span>{connectionLabel}</span>
       </ConnectionBadge>
     </Header>
   );
-
-  // console.log(deleteMessage);
-
-  // const handleDelete = async () => {
-  //   const clientActionId = crypto.randomUUID();
-
-  //   // ----------------------------------------
-  //   // 1. UPDATE UI IMMEDIATELY
-  //   // ----------------------------------------
-
-  //   queryClient.setQueryData<CachedMessages>(
-  //     ["messages", deleteMessage?.conversationId],
-  //     (old) => {
-  //       if (!old) return old;
-
-  //       return {
-  //         ...old,
-  //         pages: old.pages.map((page) => ({
-  //           ...page,
-  //           messages: page.messages.map((msg) =>
-  //             msg.id === deleteMessage?.id
-  //               ? {
-  //                   ...msg,
-  //                   isDeleted: true,
-  //                   deletedAt: new Date().toISOString(),
-  //                 }
-  //               : msg,
-  //           ),
-  //         })),
-  //       };
-  //     },
-  //   );
-
-  //   // ----------------------------------------
-  //   // 2. SAVE TO OFFLINE OUTBOX
-  //   // ----------------------------------------
-
-  //   await addPendingAction({
-  //     clientActionId,
-  //     type: "DELETE_MESSAGE",
-  //     conversationId: deleteMessage?.conversationId as string,
-  //     messageId: deleteMessage?.id,
-
-  //     createdAt: new Date().toISOString(),
-  //   });
-
-  //   // ----------------------------------------
-  //   // 3. SEND IF ONLINE
-  //   // ----------------------------------------
-
-  //   const sent = send({
-  //     type: SocketEvent.DELETE_MESSAGE,
-
-  //     conversationId: deleteMessage?.conversationId,
-  //     messageId: deleteMessage?.id,
-  //   });
-
-  //   if (!sent) {
-  //     console.log("📦 Delete saved to offline outbox");
-  //   }
-
-  //   // ----------------------------------------
-  //   // 4. CLEAN UI
-  //   // ----------------------------------------
-
-  //   setDeleteMessage(null);
-  //   setEditingMessage(null);
-  // };
 
   return (
     <ChatLayout>
@@ -366,7 +396,7 @@ export default function ChatPage({
                     formatMessageDate(m.createdAt);
 
                 return (
-                  <Fragment key={m.clientMessageId ?? m.id}>
+                  <Fragment key={m.id}>
                     {showDate && (
                       <DateDiv>
                         <DateChip>{formatMessageDate(m.createdAt)}</DateChip>
@@ -453,6 +483,434 @@ export default function ChatPage({
       />
     </ChatLayout>
   );
+};
+export default chatPage;
+
+export function GlobalCallOverlay() {
+  const callId = useCallStore((state) => state.callId);
+  const conversationId = useCallStore((state) => state.conversationId);
+  const callType = useCallStore((state) => state.callType);
+  const callStatus = useCallStore((state) => state.status);
+  const callerId = useCallStore((state) => state.callerId);
+  const recipientId = useCallStore((state) => state.recipientId);
+  const localStream = useCallStore((state) => state.localStream);
+  const setStatus = useCallStore((state) => state.setStatus);
+  const resetCall = useCallStore((state) => state.resetCall);
+  const send = useWebSocketStore((state) => state.send);
+  const navigate = useNavigate();
+  const contactId = recipientId ?? callerId;
+  const { data: contactData } = useGetUserQuery(contactId ?? "");
+
+  useEffect(() => {
+    if (callStatus !== "ended") return;
+
+    const resetTimer = window.setTimeout(() => {
+      if (conversationId) {
+        navigate(PATHS.CHAT.CHAT(conversationId));
+      }
+      resetCall();
+    }, 5000);
+
+    return () => window.clearTimeout(resetTimer);
+  }, [callStatus, conversationId, navigate, resetCall]);
+
+  const handleAcceptCall = () => {
+    if (!callId) {
+      console.error("Cannot accept the call: call ID is missing.");
+      return;
+    }
+
+    const sent = send({
+      type: "ACCEPT_CALL",
+      callId,
+      conversationId,
+    });
+
+    if (sent) {
+      setStatus("connecting");
+    }
+  };
+
+  const handleRejectCall = () => {
+    if (callId) {
+      send({
+        type: "REJECT_CALL",
+        callId,
+        conversationId,
+      });
+    }
+
+    closeWebRTC();
+    setStatus("ended");
+  };
+
+  const handleEndCall = () => {
+    if (callId && callStatus !== "ended") {
+      const sent = send({
+        type: "END_CALL",
+        callId,
+        conversationId,
+      });
+
+      if (!sent) {
+        console.error("Failed to notify the other participant that the call ended.");
+      }
+    }
+
+    closeWebRTC();
+    setStatus("ended");
+  };
+
+  if (callStatus === "idle" || !callType) return null;
+
+  return createPortal(
+    <CallScreen
+      type={callType}
+      name={contactData?.data.username || "Contact"}
+      avatar={contactData?.data.avatar || ""}
+      status={callStatus}
+      onAccept={handleAcceptCall}
+      onReject={handleRejectCall}
+      onEnd={handleEndCall}
+      localStream={localStream}
+    />,
+    document.body,
+  );
+}
+
+function CallScreen({
+  type,
+  name,
+  avatar,
+  status,
+  onAccept,
+  onReject,
+  onEnd,
+  localStream,
+}: {
+  type: "audio" | "video";
+  name: string;
+  avatar: string;
+  localStream: MediaStream | null;
+  status:
+    | "calling"
+    | "ringing"
+    | "connecting"
+    | "connected"
+    | "ended"
+    | "error";
+  onAccept: () => void;
+  onReject: () => void;
+  onEnd: () => void;
+}) {
+  const localVideoRef = useRef<HTMLVideoElement>(null);
+  const remoteVideoRef = useRef<HTMLVideoElement>(null);
+  const remoteAudioRef = useRef<HTMLAudioElement>(null);
+  const remoteStream = useCallStore((state) => state.remoteStream);
+  const [speakerEnabled, setSpeakerEnabled] = useState(true);
+  const [microphoneMuted, setMicrophoneMuted] = useState(false);
+  const [cameraEnabled, setCameraEnabled] = useState(true);
+  const [remoteSpeaking, setRemoteSpeaking] = useState(false);
+  const remoteSpeakingRef = useRef(false);
+  const [remoteVideoReady, setRemoteVideoReady] = useState(false);
+  const isVideoCall = type === "video";
+  const hasLocalVideo = Boolean(
+    cameraEnabled &&
+    localStream
+      ?.getVideoTracks()
+      .some((track) => track.readyState === "live" && track.enabled),
+  );
+
+  useEffect(() => {
+    const video = localVideoRef.current;
+
+    if (!video) return;
+
+    video.srcObject = localStream;
+    return () => {
+      video.srcObject = null;
+    };
+  }, [localStream]);
+
+  useEffect(() => {
+    const video = remoteVideoRef.current;
+
+    if (!video) return;
+
+    video.srcObject = remoteStream;
+    setRemoteVideoReady(false);
+
+    if (remoteStream) {
+      void video.play().catch((error: unknown) => {
+        console.error("Remote video playback failed:", error);
+      });
+    }
+
+    return () => {
+      video.srcObject = null;
+      setRemoteVideoReady(false);
+    };
+  }, [remoteStream]);
+
+  useEffect(() => {
+    const audio = remoteAudioRef.current;
+
+    if (!audio) return;
+
+    audio.srcObject = isVideoCall ? null : remoteStream;
+
+    if (!isVideoCall && remoteStream) {
+      void audio.play().catch((error) => {
+        console.error("Remote audio playback failed:", error);
+      });
+    }
+
+    return () => {
+      audio.srcObject = null;
+    };
+  }, [isVideoCall, remoteStream]);
+
+  useEffect(() => {
+    toggleMicrophone(!microphoneMuted);
+  }, [microphoneMuted, localStream]);
+
+  useEffect(() => {
+    toggleCamera(cameraEnabled);
+  }, [cameraEnabled, localStream]);
+
+  useEffect(() => {
+    const audio = remoteAudioRef.current;
+    const video = remoteVideoRef.current;
+
+    if (audio) audio.muted = !speakerEnabled;
+    if (video) video.muted = !speakerEnabled;
+  }, [speakerEnabled]);
+
+  useEffect(() => {
+    if (isVideoCall || !remoteStream?.getAudioTracks().length) {
+      remoteSpeakingRef.current = false;
+      setRemoteSpeaking(false);
+      return;
+    }
+
+    if (typeof window.AudioContext === "undefined") {
+      return;
+    }
+
+    let audioContext: AudioContext;
+    let animationFrame = 0;
+    let source: MediaStreamAudioSourceNode;
+    let silentGain: GainNode;
+
+    try {
+      audioContext = new AudioContext();
+      const analyser = audioContext.createAnalyser();
+      analyser.fftSize = 512;
+      source = audioContext.createMediaStreamSource(remoteStream);
+      source.connect(analyser);
+      silentGain = audioContext.createGain();
+      silentGain.gain.value = 0;
+      analyser.connect(silentGain);
+      silentGain.connect(audioContext.destination);
+
+      const samples = new Uint8Array(analyser.fftSize);
+      const measureSpeech = () => {
+        analyser.getByteTimeDomainData(samples);
+        let total = 0;
+
+        for (const sample of samples) {
+          const amplitude = (sample - 128) / 128;
+          total += amplitude * amplitude;
+        }
+
+        const isSpeaking = Math.sqrt(total / samples.length) > 0.035;
+        if (remoteSpeakingRef.current !== isSpeaking) {
+          remoteSpeakingRef.current = isSpeaking;
+          setRemoteSpeaking(isSpeaking);
+        }
+
+        animationFrame = window.requestAnimationFrame(measureSpeech);
+      };
+
+      void audioContext.resume().catch((error: unknown) => {
+        console.error("Could not start call audio analysis:", error);
+      });
+      animationFrame = window.requestAnimationFrame(measureSpeech);
+    } catch (error) {
+      console.error("Could not analyze remote call audio:", error);
+      return;
+    }
+
+    return () => {
+      window.cancelAnimationFrame(animationFrame);
+      source.disconnect();
+      silentGain.disconnect();
+      void audioContext.close().catch((error: unknown) => {
+        console.error("Could not close call audio analysis:", error);
+      });
+      remoteSpeakingRef.current = false;
+      setRemoteSpeaking(false);
+    };
+  }, [isVideoCall, remoteStream]);
+
+  const contactAvatar = avatar ? (
+    <CallAvatar src={avatar} alt="" $speaking={remoteSpeaking} />
+  ) : (
+    <CallAvatarFallback aria-hidden="true" $speaking={remoteSpeaking}>
+      {name.trim().charAt(0).toUpperCase() || "?"}
+    </CallAvatarFallback>
+  );
+
+  return (
+    <CallOverlay
+      role="dialog"
+      aria-modal="true"
+      aria-label={`${isVideoCall ? "Video" : "Voice"} call with ${name}`}
+      $video={isVideoCall}
+    >
+      <CallTopbar>
+        <CallTopButton type="button" aria-label="End call" onClick={onEnd}>
+          <PhoneOff size={20} />
+        </CallTopButton>
+        <CallTopTitle>{isVideoCall ? "Video call" : "Voice call"}</CallTopTitle>
+        <CallTopButton type="button" aria-label="More call options" disabled>
+          <MoreVertical size={22} />
+        </CallTopButton>
+      </CallTopbar>
+
+      {isVideoCall ? (
+        <VideoCallStage>
+          <RemoteVideo
+            ref={remoteVideoRef}
+            autoPlay
+            playsInline
+            muted={!speakerEnabled}
+            onLoadedData={() => setRemoteVideoReady(true)}
+            onEmptied={() => setRemoteVideoReady(false)}
+          />
+          {!remoteVideoReady && (
+            <RemoteVideoPlaceholder>
+              {contactAvatar}
+              <VideoContactName>{name}</VideoContactName>
+              <CallStatus>
+                {status === "calling" && "Calling..."}
+                {status === "ringing" && "Incoming call"}
+                {status === "connecting" && "Connecting..."}
+                {status === "connected" && "Waiting for video..."}
+                {status === "ended" && "Call ended"}
+                {status === "error" && "Call failed"}
+              </CallStatus>
+            </RemoteVideoPlaceholder>
+          )}
+          <LocalVideoTile>
+            <LocalVideo ref={localVideoRef} autoPlay muted playsInline />
+            {!hasLocalVideo && (
+              <LocalVideoPlaceholder>
+                <Camera size={20} />
+                <span>Camera off</span>
+              </LocalVideoPlaceholder>
+            )}
+            <LocalVideoLabel>You</LocalVideoLabel>
+          </LocalVideoTile>
+        </VideoCallStage>
+      ) : (
+        <AudioCallStage>
+          <audio ref={remoteAudioRef} autoPlay muted={!speakerEnabled} />
+          <AudioCallContact>
+            {contactAvatar}
+
+            <AudioContactName>{name}</AudioContactName>
+
+            <CallStatus>
+              {status === "calling" && "Calling..."}
+              {status === "ringing" && "Incoming call"}
+              {status === "connecting" && "Connecting..."}
+              {status === "connected" && "Connected"}
+              {status === "ended" && "Call ended"}
+              {status === "error" && "Call failed"}
+            </CallStatus>
+          </AudioCallContact>
+        </AudioCallStage>
+      )}
+
+      <CallControls>
+        {status === "ringing" ? (
+          <>
+            <RejectCallButton
+              type="button"
+              aria-label="Reject call"
+              onClick={onReject}
+            >
+              <PhoneOff size={23} />
+            </RejectCallButton>
+            <AcceptCallButton
+              type="button"
+              aria-label="Accept call"
+              onClick={onAccept}
+            >
+              <Phone size={23} />
+            </AcceptCallButton>
+          </>
+        ) : (
+          <>
+            <CallControl
+              type="button"
+              aria-label={
+                speakerEnabled ? "Turn speaker off" : "Turn speaker on"
+              }
+              aria-pressed={speakerEnabled}
+              onClick={() => setSpeakerEnabled((enabled) => !enabled)}
+            >
+              <CallControlIcon $active={speakerEnabled}>
+                {speakerEnabled ? <Volume2 size={21} /> : <VolumeX size={21} />}
+              </CallControlIcon>
+              <CallControlLabel>
+                {speakerEnabled ? "Speaker" : "Speaker off"}
+              </CallControlLabel>
+            </CallControl>
+
+            <CallControl
+              type="button"
+              aria-label={
+                microphoneMuted ? "Unmute microphone" : "Mute microphone"
+              }
+              aria-pressed={microphoneMuted}
+              onClick={() => setMicrophoneMuted((muted) => !muted)}
+            >
+              <CallControlIcon $active={!microphoneMuted}>
+                {microphoneMuted ? <MicOff size={21} /> : <Mic size={21} />}
+              </CallControlIcon>
+              <CallControlLabel>
+                {microphoneMuted ? "Unmute" : "Mute"}
+              </CallControlLabel>
+            </CallControl>
+
+            {isVideoCall && (
+              <CallControl
+                type="button"
+                aria-label={
+                  cameraEnabled ? "Turn camera off" : "Turn camera on"
+                }
+                aria-pressed={cameraEnabled}
+                onClick={() => setCameraEnabled((enabled) => !enabled)}
+              >
+                <CallControlIcon $active={cameraEnabled}>
+                  {cameraEnabled ? <Video size={21} /> : <VideoOff size={21} />}
+                </CallControlIcon>
+                <CallControlLabel>
+                  {cameraEnabled ? "Camera" : "Camera off"}
+                </CallControlLabel>
+              </CallControl>
+            )}
+
+            <EndCallButton type="button" aria-label="End call" onClick={onEnd}>
+              <PhoneOff size={23} />
+            </EndCallButton>
+          </>
+        )}
+      </CallControls>
+    </CallOverlay>
+  );
 }
 
 //styles
@@ -491,6 +949,7 @@ const Header = styled.header`
   gap: 12px;
   padding: 12px 16px;
   width: 100%;
+  min-width: 0;
 
   @media (max-width: 767px) {
     position: fixed;
@@ -521,6 +980,36 @@ const Who = styled.div`
   min-width: 0;
 `;
 
+const CallActions = styled.div`
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+`;
+
+const HeaderCallButton = styled.button`
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: ${({ theme }) => theme.colors.textPrimary};
+  transition:
+    color 160ms ease,
+    background 160ms ease;
+
+  &:hover {
+    color: ${({ theme }) => theme.colors.secondary};
+    background: ${({ theme }) => theme.colors.secondarySoft};
+  }
+
+  &:focus-visible {
+    outline: 2px solid ${({ theme }) => theme.colors.secondary};
+    outline-offset: 2px;
+  }
+`;
+
 export const ConnectionBadge = styled.div<{
   $connected: boolean;
 }>`
@@ -549,6 +1038,273 @@ const Name = styled.div`
 const Status = styled.div`
   font-size: 12px;
   color: ${({ theme }) => theme.colors.textSecondary};
+`;
+
+const CallOverlay = styled.div<{ $video: boolean }>`
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  color: #fff;
+  background: ${({ $video }) =>
+    $video
+      ? "radial-gradient(ellipse at 50% 43%, #25343a 0%, #10191d 52%, #080d10 100%)"
+      : "radial-gradient(ellipse at 50% 35%, #28413f 0%, #142321 46%, #0c1514 100%)"};
+  font-family: inherit;
+`;
+
+const CallTopbar = styled.div`
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: max(16px, env(safe-area-inset-top)) 18px 12px;
+`;
+
+const CallTopButton = styled.button`
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.1);
+
+  &:disabled {
+    cursor: default;
+    opacity: 0.65;
+  }
+`;
+
+const CallTopTitle = styled.div`
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+`;
+
+const AudioCallStage = styled.div`
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+`;
+
+const AudioCallContact = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  margin-top: -32px;
+`;
+
+const talkingPulse = keyframes`
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 12px 48px rgba(0, 0, 0, 0.3), 0 0 0 0 rgba(37, 211, 102, 0);
+  }
+  50% {
+    transform: scale(1.035);
+    box-shadow: 0 12px 48px rgba(0, 0, 0, 0.3), 0 0 0 12px rgba(37, 211, 102, 0.22);
+  }
+`;
+
+const CallAvatar = styled.img<{ $speaking: boolean }>`
+  width: 132px;
+  height: 132px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.3);
+  animation: ${talkingPulse} 1.15s ease-in-out infinite;
+  animation-play-state: ${({ $speaking }) =>
+    $speaking ? "running" : "paused"};
+`;
+
+const CallAvatarFallback = styled.div<{ $speaking: boolean }>`
+  width: 132px;
+  height: 132px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.12);
+  font-size: 44px;
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.3);
+  animation: ${talkingPulse} 1.15s ease-in-out infinite;
+  animation-play-state: ${({ $speaking }) =>
+    $speaking ? "running" : "paused"};
+`;
+
+const AudioContactName = styled.div`
+  max-width: min(78vw, 420px);
+  margin-top: 10px;
+  overflow: hidden;
+  font-size: 28px;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+`;
+
+const CallStatus = styled.div`
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 15px;
+`;
+
+const VideoContactName = styled.div`
+  max-width: min(78vw, 420px);
+  overflow: hidden;
+  font-size: 25px;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+`;
+
+const VideoCallStage = styled.div`
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  margin: 4px 14px 0;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 24px;
+  background: linear-gradient(
+    155deg,
+    rgba(57, 76, 78, 0.56),
+    rgba(9, 15, 18, 0.5)
+  );
+`;
+
+const RemoteVideo = styled.video`
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #080d10;
+`;
+
+const RemoteVideoPlaceholder = styled.div`
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 24px;
+  background: radial-gradient(ellipse at 50% 40%, #25343a, #10191d 72%);
+`;
+
+const LocalVideoTile = styled.div`
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 2;
+  width: clamp(104px, 24vw, 168px);
+  aspect-ratio: 3 / 4;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 16px;
+  background: #131a1d;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.36);
+`;
+
+const LocalVideo = styled.video`
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #131a1d;
+`;
+
+const LocalVideoPlaceholder = styled.div`
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 11px;
+`;
+
+const LocalVideoLabel = styled.span`
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  left: 8px;
+  overflow: hidden;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  text-shadow: 0 1px 5px rgba(0, 0, 0, 0.8);
+`;
+
+const CallControls = styled.div`
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: clamp(16px, 5vw, 30px);
+  padding: 26px 20px max(30px, env(safe-area-inset-bottom));
+`;
+
+const CallControl = styled.button`
+  display: flex;
+  min-width: 54px;
+  flex-direction: column;
+  align-items: center;
+  gap: 9px;
+  color: #fff;
+  background: transparent;
+  cursor: pointer;
+`;
+
+const CallControlIcon = styled.span<{ $active: boolean }>`
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: ${({ $active }) =>
+    $active ? "rgba(255, 255, 255, 0.24)" : "rgba(255, 255, 255, 0.12)"};
+  transition: background 160ms ease;
+`;
+
+const CallControlLabel = styled.span`
+  color: rgba(255, 255, 255, 0.86);
+  font-size: 11px;
+`;
+
+const EndCallButton = styled.button`
+  width: 58px;
+  height: 58px;
+  margin: -2px 0 0 4px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  background: #e53935;
+  box-shadow: 0 6px 20px rgba(229, 57, 53, 0.3);
+  transform: rotate(135deg);
+`;
+
+const RejectCallButton = styled(EndCallButton)``;
+
+const AcceptCallButton = styled(EndCallButton)`
+  background: #25d366;
+  box-shadow: 0 6px 20px rgba(37, 211, 102, 0.3);
 `;
 
 // const HBtn = styled.button`
