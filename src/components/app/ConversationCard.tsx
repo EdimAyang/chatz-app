@@ -52,7 +52,7 @@ export function ConversationCard({
     typingKey === c.id && typingUserId !== profile?.data?.id;
 
   return (
-    <Outer>
+    <Outer key={c.id}>
       <motion.div
         style={{ position: "absolute", inset: 0, opacity: bgOpacity }}
       >

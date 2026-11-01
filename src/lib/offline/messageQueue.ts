@@ -9,7 +9,17 @@ export type PendingActionType =
   | "EDIT_MESSAGE"
   | "DELETE_MESSAGE"
   | "REACTION_ADD"
-  | "REACTION_REMOVE";
+  | "REACTION_REMOVE"
+  | "CALL_STARTED"
+  | "INCOMING_CALL"
+  | "CALL_ACCEPTED"
+  | "CALL_REJECTED"
+  | "CALL_ENDED"
+  | "CALL_BUSY"
+  | "CALL_ERROR"
+  | "WEBRTC_OFFER"
+  | "WEBRTC_ANSWER"
+  | "ICE_CANDIDATE"
 
 export type PendingAction = {
   clientActionId: string;
