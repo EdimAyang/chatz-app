@@ -54,6 +54,7 @@ import type { ChatMessage, MessageStatus } from "#/types";
 // import { queryClient } from "#/lib/query-client";
 import { useCallStore } from "@/store/call.store";
 import { closeWebRTC, toggleCamera, toggleMicrophone } from "@/webRTC";
+import { queryClient } from "#/lib/query-client";
 
 type ChatPageProps = {
   conversationId?: string;
@@ -74,6 +75,14 @@ const chatPage = ({ conversationId, recipientId }: ChatPageProps) => {
   const resetCall = useCallStore((state) => state.resetCall);
 
   const [deleteMessage, setDeleteMessage] = useState<ChatMessage | null>(null);
+
+  useEffect(() => {
+    if (!conversationId) return;
+
+    void queryClient.invalidateQueries({
+      queryKey: ["messages", conversationId],
+    });
+  }, [conversationId]);
 
   const { data, isLoading, isFetchingNextPage, hasNextPage, fetchNextPage } =
     useGetMessageQuery(conversationId ?? "", "100");
@@ -553,7 +562,9 @@ export function GlobalCallOverlay() {
       });
 
       if (!sent) {
-        console.error("Failed to notify the other participant that the call ended.");
+        console.error(
+          "Failed to notify the other participant that the call ended.",
+        );
       }
     }
 
