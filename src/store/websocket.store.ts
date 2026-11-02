@@ -394,9 +394,7 @@ export const useWebSocketStore = create<WebSocketState>((set, get) => {
           reconnectAttempts: 0,
         });
 
-        void queryClient.invalidateQueries({
-          queryKey: ["conversations"],
-        });
+        void queryClient.invalidateQueries();
 
         void get().flushPendingActions();
       };

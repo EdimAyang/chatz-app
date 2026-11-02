@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useWebSocketStore } from "@/store/websocket.store";
 import { useOnlineUsersStore } from "@/store/onlineUser.store";
+import { queryClient } from "@/lib/query-client";
 // import toast from "react-hot-toast";
 
 export function useWebSocket(token: string | null) {
@@ -16,6 +17,8 @@ export function useWebSocket(token: string | null) {
 
   useEffect(() => {
     const handleOnline = () => {
+      void queryClient.invalidateQueries();
+
       const { isConnected, isConnecting, connect } =
         useWebSocketStore.getState();
 
