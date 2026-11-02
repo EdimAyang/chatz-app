@@ -1481,6 +1481,15 @@ const Composer = styled.form`
   background: ${({ theme }) => theme.colors.background};
   border-top: 1px solid rgba(255, 255, 255, 0.06);
   position: relative;
+
+  @media (max-width: 767px) {
+    position: fixed;
+    z-index: 20;
+    right: 0;
+    bottom: var(--chat-visual-viewport-bottom, 0px);
+    left: 0;
+    width: 100vw;
+  }
 `;
 
 const VideoRecorderScreen = styled.div`

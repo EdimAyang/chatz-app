@@ -117,6 +117,44 @@ const chatPage = ({ conversationId, recipientId }: ChatPageProps) => {
   }, []);
 
   useEffect(() => {
+    if (!isMobile) return;
+
+    const viewport = window.visualViewport;
+    const updateViewportInsets = () => {
+      const top = viewport?.offsetTop ?? 0;
+      const bottom = viewport
+        ? Math.max(0, window.innerHeight - viewport.height - top)
+        : 0;
+
+      document.documentElement.style.setProperty(
+        "--chat-visual-viewport-top",
+        `${top}px`,
+      );
+      document.documentElement.style.setProperty(
+        "--chat-visual-viewport-bottom",
+        `${bottom}px`,
+      );
+    };
+
+    updateViewportInsets();
+    viewport?.addEventListener("resize", updateViewportInsets);
+    viewport?.addEventListener("scroll", updateViewportInsets);
+    window.addEventListener("resize", updateViewportInsets);
+
+    return () => {
+      viewport?.removeEventListener("resize", updateViewportInsets);
+      viewport?.removeEventListener("scroll", updateViewportInsets);
+      window.removeEventListener("resize", updateViewportInsets);
+      document.documentElement.style.removeProperty(
+        "--chat-visual-viewport-top",
+      );
+      document.documentElement.style.removeProperty(
+        "--chat-visual-viewport-bottom",
+      );
+    };
+  }, [isMobile]);
+
+  useEffect(() => {
     if (!createdConversationId) return;
 
     navigate(PATHS.CHAT.CHAT(createdConversationId));
@@ -417,6 +455,28 @@ const chatPage = ({ conversationId, recipientId }: ChatPageProps) => {
     </Header>
   );
 
+  const chatInput = (
+    <ChatInput
+      conversationId={conversationId ?? ""}
+      startRecording={startRecording}
+      isRecording={isRecording}
+      audioUrl={audioUrl}
+      duration={duration}
+      resetAudio={resetAudio}
+      audioBlob={audioBlob}
+      stopRecording={stopRecording}
+      recipientId={recipientId ?? ""}
+      scrollToBottom={scrollToBottom}
+      isAtBottom={isAtBottom}
+      editingMessage={editingMessage!}
+      setEditingMessage={setEditingMessage!}
+      replyingTo={replyingTo}
+      setReplyingTo={setReplyingTo}
+      deleteMessage={deleteMessage}
+      setDeleteMessage={setDeleteMessage}
+    />
+  );
+
   return (
     <ChatLayout>
       {isUserLoading || isLoading ? (
@@ -508,25 +568,7 @@ const chatPage = ({ conversationId, recipientId }: ChatPageProps) => {
         </>
       )}
 
-      <ChatInput
-        conversationId={conversationId ?? ""}
-        startRecording={startRecording}
-        isRecording={isRecording}
-        audioUrl={audioUrl}
-        duration={duration}
-        resetAudio={resetAudio}
-        audioBlob={audioBlob}
-        stopRecording={stopRecording}
-        recipientId={recipientId ?? ""}
-        scrollToBottom={scrollToBottom}
-        isAtBottom={isAtBottom}
-        editingMessage={editingMessage!}
-        setEditingMessage={setEditingMessage!}
-        replyingTo={replyingTo}
-        setReplyingTo={setReplyingTo}
-        deleteMessage={deleteMessage}
-        setDeleteMessage={setDeleteMessage}
-      />
+      {isMobile ? createPortal(chatInput, document.body) : chatInput}
     </ChatLayout>
   );
 };
@@ -1010,9 +1052,10 @@ const Header = styled.header`
 
   @media (max-width: 767px) {
     position: fixed;
-    top: 0;
+    top: var(--chat-visual-viewport-top, 0px);
     left: 0;
     width: 100vw;
+    z-index: 20;
   }
 `;
 
@@ -1382,6 +1425,10 @@ export const Scroll = styled.div`
   padding-block: 12px;
   -webkit-overflow-scrolling: touch;
   padding-inline: 12px;
+
+  @media (max-width: 767px) {
+    padding-bottom: calc(100px + env(safe-area-inset-bottom));
+  }
 `;
 const DateDiv = styled.div`
   text-align: center;
