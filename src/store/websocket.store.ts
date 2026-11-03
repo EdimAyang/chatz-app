@@ -81,7 +81,7 @@ export const useWebSocketStore = create<WebSocketState>((set, get) => {
     onRemoteStream: (stream) => {
       useCallStore.getState().setRemoteStream(stream);
     },
-    
+
     onConnectionStateChange: (state) => {
       console.log("WebRTC connection state:", state);
 
@@ -486,10 +486,15 @@ export const useWebSocketStore = create<WebSocketState>((set, get) => {
 
           case "INCOMING_CALL": {
             useCallStore.getState().receiveIncomingCall(payload);
+
             break;
           }
 
           case "CALL_ACCEPTED": {
+            // Stop the incoming ringtone immediately.
+            const callStore = useCallStore.getState();
+            callStore.setStatus("connecting");
+            
             try {
               const callStore = useCallStore.getState();
               const callId = payload.callId ?? callStore.callId;

@@ -5,6 +5,7 @@ import { useState } from "react";
 import { useWhatsNew } from "#/hooks/useWhatsNew";
 import { WhatsNewModal } from "#/components/app/WhatsNewModal";
 import { GlobalCallOverlay } from "@/components/app/chatPage";
+import IncomingCallRingtone from "#/components/app/IncomingCallRinger";
 
 const AppLayout = () => {
   const { show, close, update } = useWhatsNew();
@@ -32,6 +33,7 @@ const AppLayout = () => {
         )}
       </Layout>
       <GlobalCallOverlay />
+      <IncomingCallRingtone />
     </>
   );
 };
