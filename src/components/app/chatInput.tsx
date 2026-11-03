@@ -3,14 +3,17 @@ import { motion } from "framer-motion";
 import {
   CameraIcon,
   Check,
+  CircleStop,
   FileText,
   Image as ImageIcon,
+  LoaderCircle,
   Mic,
+  Pause,
   Paperclip,
+  Play,
   RefreshCw,
   Send,
   Smile,
-  Square,
   Trash2,
   Video,
   X,
@@ -38,6 +41,7 @@ import type { ChatMessage } from "#/types";
 import { useAuthStore } from "#/store/auth.store";
 import type { ReplyToMessage } from "./MessageBubble";
 import { addPendingAction } from "#/lib/offline/messageQueue";
+import toast from "react-hot-toast";
 // import { addOptimisticMediaMessage } from "#/utils/addPendingMedia";
 import { checkMediaOnline } from "#/utils/checkMediaOnline";
 import DeleteMessageDialog from "./DeleteDialogu";
@@ -61,11 +65,15 @@ type ChatInputProps = {
   conversationId: string;
   startRecording: () => Promise<void>;
   isRecording: boolean;
+  isPaused: boolean;
   audioUrl: string | null;
   duration: number;
+  waveformLevels: number[];
+  pauseRecording: () => void;
+  resumeRecording: () => void;
   resetAudio: () => void;
   audioBlob: Blob | null;
-  stopRecording: () => void;
+  stopRecording: () => Promise<Blob | null>;
   recipientId: string;
   scrollToBottom: () => void;
   isAtBottom: boolean;
@@ -89,8 +97,12 @@ export default function ChatInput({
   stopRecording,
   startRecording,
   isRecording,
+  isPaused,
   audioUrl,
   duration,
+  waveformLevels,
+  pauseRecording,
+  resumeRecording,
   resetAudio,
   audioBlob,
   recipientId,
@@ -109,6 +121,8 @@ export default function ChatInput({
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [videoBlob, setVideoBlob] = useState<Blob | null>(null);
   const [isVideoRecording, setIsVideoRecording] = useState(false);
+  const [isVideoPaused, setIsVideoPaused] = useState(false);
+  const [isVideoPreviewPlaying, setIsVideoPreviewPlaying] = useState(false);
   const [videoDuration, setVideoDuration] = useState(0);
   const emojiButtonRef = useRef<HTMLButtonElement | null>(null);
   const attachmentButtonRef = useRef<HTMLButtonElement | null>(null);
@@ -118,6 +132,10 @@ export default function ChatInput({
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const videoPreviewRef = useRef<HTMLVideoElement | null>(null);
   const videoStreamRef = useRef<MediaStream | null>(null);
+  const videoRecorderRef = useRef<MediaRecorder | null>(null);
+  const videoStopResolverRef = useRef<
+    ((blob: Blob | null) => void) | null
+  >(null);
   const discardVideoRef = useRef(false);
   const pickerRef = useRef<HTMLDivElement | null>(null);
   const [deleteMsg, setDeleteMsg] = useState<boolean>(false)
@@ -487,9 +505,10 @@ export default function ChatInput({
     }, 2000);
   };
 
-  const handleSendAudio = async () => {
+  const handleSendAudio = async (recordedBlob?: Blob | null) => {
     if (!checkMediaOnline()) return;
-    if (!audioBlob) return;
+    const blob = recordedBlob ?? audioBlob;
+    if (!blob) return;
 
     // const clientMessageId = crypto.randomUUID();
 
@@ -547,7 +566,7 @@ export default function ChatInput({
     // ============================================
 
     const formData = new FormData();
-    formData.append("audio", audioBlob);
+    formData.append("audio", blob);
 
     if (conversationId) {
       formData.append("conversationId", conversationId);
@@ -583,6 +602,17 @@ export default function ChatInput({
       recorder.ondataavailable = (event) => {
         if (event.data.size > 0) {
           chunks.push(event.data);
+          if (recorder.state === "paused") {
+            const previewBlob = new Blob(chunks, {
+              type: recorder.mimeType || "video/webm",
+            });
+            const previewUrl = URL.createObjectURL(previewBlob);
+            setVideoUrl((currentUrl) => {
+              if (currentUrl) URL.revokeObjectURL(currentUrl);
+              return previewUrl;
+            });
+            setVideoBlob(previewBlob);
+          }
         }
       };
 
@@ -590,47 +620,92 @@ export default function ChatInput({
         if (discardVideoRef.current) {
           discardVideoRef.current = false;
           stream.getTracks().forEach((track) => track.stop());
+          videoStopResolverRef.current?.(null);
+          videoStopResolverRef.current = null;
           return;
         }
 
-        const blob = new Blob(chunks, { type: "video/webm" });
+        const blob = new Blob(chunks, {
+          type: recorder.mimeType || "video/webm",
+        });
         const url = URL.createObjectURL(blob);
 
         setVideoBlob(blob);
-        setVideoUrl(url);
+        setVideoUrl((currentUrl) => {
+          if (currentUrl) URL.revokeObjectURL(currentUrl);
+          return url;
+        });
+        setIsVideoRecording(false);
+        setIsVideoPaused(false);
         stream.getTracks().forEach((track) => track.stop());
+        videoStreamRef.current = null;
+        videoStopResolverRef.current?.(blob);
+        videoStopResolverRef.current = null;
       };
 
-      recorder.start();
+      recorder.start(250);
       setVideoDuration(0);
+      setVideoUrl(null);
+      setVideoBlob(null);
       setIsVideoRecording(true);
-      (window as any).__chatVideoRecorder = recorder;
-    } catch (error: any) {
+      setIsVideoPaused(false);
+      videoRecorderRef.current = recorder;
+    } catch (error: unknown) {
       console.error(error);
-      if (error?.message) {
-        alert(error.message);
-      }
+      toast.error(
+        error instanceof Error ? error.message : "Could not start video recording.",
+      );
     }
   };
 
-  const handleStopVideoRecording = () => {
-    const recorder = (window as any).__chatVideoRecorder as
-      | MediaRecorder
-      | undefined;
-    if (!recorder) return;
+  const handlePauseVideoRecording = () => {
+    const recorder = videoRecorderRef.current;
+    if (!recorder || recorder.state !== "recording") return;
 
-    recorder.stop();
+    videoPreviewRef.current?.pause();
+    if (videoPreviewRef.current) videoPreviewRef.current.srcObject = null;
+    recorder.pause();
+    setIsVideoPaused(true);
+    recorder.requestData();
+  };
+
+  const handleResumeVideoRecording = () => {
+    const recorder = videoRecorderRef.current;
+    if (!recorder || recorder.state !== "paused") return;
+
+    videoPreviewRef.current?.pause();
+    setIsVideoPreviewPlaying(false);
+    recorder.resume();
+    setVideoUrl((currentUrl) => {
+      if (currentUrl) URL.revokeObjectURL(currentUrl);
+      return null;
+    });
+    setVideoBlob(null);
+    setIsVideoPaused(false);
+  };
+
+  const handleStopVideoRecording = (): Promise<Blob | null> => {
+    const recorder = videoRecorderRef.current;
+    if (!recorder || recorder.state === "inactive") {
+      return Promise.resolve(videoBlob);
+    }
+
     setIsVideoRecording(false);
+    setIsVideoPaused(false);
+    return new Promise((resolve) => {
+      videoStopResolverRef.current = resolve;
+      recorder.stop();
+    });
   };
 
   const resetVideoRecording = () => {
-    const recorder = (window as any).__chatVideoRecorder as
-      | MediaRecorder
-      | undefined;
+    const recorder = videoRecorderRef.current;
     if (recorder && recorder.state !== "inactive") {
       discardVideoRef.current = true;
       recorder.stop();
     }
+    videoStopResolverRef.current?.(null);
+    videoStopResolverRef.current = null;
     videoStreamRef.current?.getTracks().forEach((track) => track.stop());
     videoStreamRef.current = null;
     if (videoUrl) URL.revokeObjectURL(videoUrl);
@@ -638,25 +713,30 @@ export default function ChatInput({
     setVideoBlob(null);
     setVideoDuration(0);
     setIsVideoRecording(false);
-    delete (window as any).__chatVideoRecorder;
+    setIsVideoPaused(false);
+    setIsVideoPreviewPlaying(false);
   };
 
   useEffect(() => {
-    if (!isVideoRecording) return;
+    if (!isVideoRecording || isVideoPaused) return;
 
-    const startedAt = Date.now();
     const timer = window.setInterval(() => {
-      setVideoDuration(Math.floor((Date.now() - startedAt) / 1000));
-    }, 250);
+      setVideoDuration((duration) => duration + 1);
+    }, 1000);
 
     return () => window.clearInterval(timer);
-  }, [isVideoRecording]);
+  }, [isVideoRecording, isVideoPaused]);
 
   useEffect(() => {
-    if (videoPreviewRef.current && videoStreamRef.current) {
+    if (
+      isVideoRecording &&
+      !isVideoPaused &&
+      videoPreviewRef.current &&
+      videoStreamRef.current
+    ) {
       videoPreviewRef.current.srcObject = videoStreamRef.current;
     }
-  }, [isVideoRecording]);
+  }, [isVideoRecording, isVideoPaused, videoUrl]);
 
   useEffect(() => {
     return () => {
@@ -666,7 +746,10 @@ export default function ChatInput({
 
   const handleSendVideoRecording = async () => {
     if (!checkMediaOnline()) return;
-    if (!videoBlob) return;
+    const blob = isVideoRecording
+      ? await handleStopVideoRecording()
+      : videoBlob;
+    if (!blob) return;
 
     // const clientMessageId = crypto.randomUUID();
 
@@ -724,7 +807,7 @@ export default function ChatInput({
     // ============================================
 
     const formData = new FormData();
-    formData.append("video", videoBlob);
+    formData.append("video", blob);
 
     if (conversationId) {
       formData.append("conversationId", conversationId);
@@ -747,7 +830,11 @@ export default function ChatInput({
 
   const handleVideoAction = () => {
     if (isVideoRecording) {
-      handleStopVideoRecording();
+      if (isVideoPaused) {
+        handleResumeVideoRecording();
+      } else {
+        handlePauseVideoRecording();
+      }
       return;
     }
 
@@ -757,6 +844,27 @@ export default function ChatInput({
     }
 
     handleStartVideoRecording();
+  };
+
+  const handleVideoCenterAction = async () => {
+    if (isVideoRecording && !isVideoPaused) {
+      handlePauseVideoRecording();
+      return;
+    }
+
+    const preview = videoPreviewRef.current;
+    if (!preview || !videoUrl) return;
+
+    if (preview.paused) {
+      try {
+        await preview.play();
+      } catch (error: unknown) {
+        console.error("Could not play the video preview.", error);
+        toast.error("Could not play the video preview.");
+      }
+    } else {
+      preview.pause();
+    }
   };
 
   const clearMediaDraft = () => {
@@ -1125,20 +1233,28 @@ export default function ChatInput({
               >
                 {editingMessage ? <Check size={18} /> : <Send size={18} />}
               </SendBtn>
+            ) : isRecording ? (
+              <CircleRecordBtn
+                type="button"
+                aria-label="Stop audio recording"
+                $active
+                onClick={stopRecording}
+              >
+                <CircleStop size={18} />
+              </CircleRecordBtn>
             ) : (
               <>
                 <CircleRecordBtn
                   type="button"
                   aria-label="Refresh messages and conversations"
+                  title="Refresh messages and conversations"
                   onClick={refreshChatData}
                 >
                   <RefreshCw size={17} />
                 </CircleRecordBtn>
-
                 <CircleRecordBtn
                   type="button"
                   aria-label="Record audio"
-                  $active={isRecording}
                   onClick={() => startRecording()}
                 >
                   <Mic size={18} />
@@ -1259,92 +1375,116 @@ export default function ChatInput({
         open={isRecording || !!audioUrl}
         onClose={() => resetAudio()}
       >
-        <RecBody>
-          <RecHead>
-            <RecTitle>
-              {isRecording ? "Recording..." : "Recording complete"}
-            </RecTitle>
-
-            <Timer>
-              {Math.floor(duration / 60)}:
-              {String(duration % 60).padStart(2, "0")}
-            </Timer>
-          </RecHead>
-
-          {audioUrl && (
-            <audio
-              controls
-              src={audioUrl}
-              style={{ width: "100%", marginTop: 16 }}
-            >
-              <track kind="captions" />
-            </audio>
-          )}
-
-          <RecActions>
-            {!isRecording && (
-              <CancelBtn onClick={() => resetAudio()}>
-                <XIcon
-                  size={16}
-                  style={{ marginRight: 6, verticalAlign: "middle" }}
-                />
-                Cancel
-              </CancelBtn>
-            )}
-
-            {isRecording ? (
-              <SendRecBtn onClick={() => stopRecording()}>
-                Stop Recording
-              </SendRecBtn>
-            ) : (
-              <SendRecBtn
-                onClick={() => handleSendAudio()}
-                isLoading={sendAudioMutation.isPending}
-              >
-                <Send size={16} />
-                Send Recording
-              </SendRecBtn>
-            )}
-          </RecActions>
-        </RecBody>
+        <VoiceRecorderPanel
+          isRecording={isRecording}
+          isPaused={isPaused}
+          audioUrl={audioUrl}
+          duration={duration}
+          waveformLevels={waveformLevels}
+          pauseRecording={pauseRecording}
+          resumeRecording={resumeRecording}
+          stopRecording={stopRecording}
+          discardRecording={resetAudio}
+          sendRecording={handleSendAudio}
+          isSending={sendAudioMutation.isPending}
+        />
       </BottomSheet>
 
       {(isVideoRecording || videoUrl) && (
         <VideoRecorderScreen>
           <VideoRecorderTopbar>
             <VideoRecorderTitle>
-              {isVideoRecording ? "Recording video" : "Preview video"}
+              {isVideoRecording
+                ? isVideoPaused
+                  ? "Recording paused"
+                  : "Recording video"
+                : "Preview video"}
             </VideoRecorderTitle>
-            {isVideoRecording && <VideoTimer>{videoDuration}s</VideoTimer>}
+            <VideoTopbarActions>
+              {isVideoRecording && isVideoPaused && (
+                <ResumeVideoButton
+                  type="button"
+                  onClick={handleResumeVideoRecording}
+                >
+                  <Play size={15} fill="currentColor" />
+                  Continue
+                </ResumeVideoButton>
+              )}
+              {isVideoRecording && <VideoTimer>{videoDuration}s</VideoTimer>}
+            </VideoTopbarActions>
           </VideoRecorderTopbar>
 
           <VideoPreview
             ref={videoPreviewRef}
             src={videoUrl ?? undefined}
-            autoPlay={isVideoRecording}
-            muted={isVideoRecording}
-            controls={!isVideoRecording}
+            autoPlay={isVideoRecording && !isVideoPaused}
+            muted={isVideoRecording && !isVideoPaused}
+            controls={false}
             playsInline
+            onPlay={() => setIsVideoPreviewPlaying(true)}
+            onPause={() => setIsVideoPreviewPlaying(false)}
+            onEnded={(event) => {
+              event.currentTarget.currentTime = 0;
+              setIsVideoPreviewPlaying(false);
+            }}
           />
 
           <VideoRecorderActions>
-            <VideoCancelBtn onClick={resetVideoRecording}>
-              Cancel
-            </VideoCancelBtn>
-            {isVideoRecording ? (
-              <StopVideoBtn onClick={handleStopVideoRecording}>
-                <Square size={16} fill="currentColor" />
-                Stop recording
-              </StopVideoBtn>
-            ) : (
-              <SendRecBtn
-                onClick={handleSendVideoRecording}
-                isLoading={sendVideoMutation.isPending}
-              >
-                <Send size={16} />
-                Send video
-              </SendRecBtn>
-            )}
+            <VideoIconButton
+              type="button"
+              aria-label="Cancel video recording"
+              title="Cancel"
+              $tone="cancel"
+              onClick={resetVideoRecording}
+            >
+              <X size={21} />
+            </VideoIconButton>
+            <VideoIconButton
+              type="button"
+              aria-label={
+                isVideoRecording && !isVideoPaused
+                  ? "Pause video recording"
+                  : isVideoPreviewPlaying
+                    ? "Pause video preview"
+                    : "Play video preview"
+              }
+              title={
+                isVideoRecording && !isVideoPaused
+                  ? "Pause recording"
+                  : "Play preview"
+              }
+              $tone="pause"
+              disabled={
+                isVideoRecording
+                  ? isVideoPaused && !videoUrl
+                  : !videoUrl
+              }
+              onClick={handleVideoCenterAction}
+            >
+              {((isVideoRecording && !isVideoPaused) ||
+                isVideoPreviewPlaying) ? (
+                <Pause size={21} fill="currentColor" />
+              ) : (
+                <Play size={21} fill="currentColor" />
+              )}
+            </VideoIconButton>
+            <VideoIconButton
+              type="button"
+              aria-label="Send video"
+              title="Send video"
+              $tone="send"
+              disabled={
+                sendVideoMutation.isPending ||
+                (!isVideoRecording && !videoBlob)
+              }
+              onClick={() => void handleSendVideoRecording()}
+            >
+              {sendVideoMutation.isPending ? (
+                <SendingSpinner size={22} aria-label="Sending video" />
+              ) : (
+                <Send size={20} />
+              )}
+            </VideoIconButton>
           </VideoRecorderActions>
         </VideoRecorderScreen>
       )}
@@ -1522,6 +1662,25 @@ const VideoRecorderTitle = styled.div`
   font-weight: 700;
 `;
 
+const VideoTopbarActions = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 12px;
+`;
+
+const ResumeVideoButton = styled.button`
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 11px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+`;
+
 const VideoTimer = styled.div`
   color: #ff4000;
   font-variant-numeric: tabular-nums;
@@ -1543,6 +1702,7 @@ const VideoRecorderActions = styled.div`
   bottom: max(18px, env(safe-area-inset-bottom));
   z-index: 1;
   display: flex;
+  justify-content: space-between;
   gap: 12px;
   padding: 14px;
   border-radius: 22px;
@@ -1551,17 +1711,41 @@ const VideoRecorderActions = styled.div`
   -webkit-backdrop-filter: blur(12px);
 `;
 
-const StopVideoBtn = styled.button`
-  flex: 2;
+const VideoIconButton = styled.button<{
+  $tone: "cancel" | "pause" | "send";
+}>`
+  width: 56px;
+  height: 56px;
+  flex: 0 0 56px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 14px;
-  border-radius: 18px;
-  background: #ff4000;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 50%;
+  background: ${({ $tone, theme }) =>
+    $tone === "pause"
+      ? "#ff4000"
+      : $tone === "send"
+        ? theme.colors.secondary
+        : "rgba(255, 255, 255, 0.18)"};
   color: #fff;
-  font-weight: 700;
+  cursor: pointer;
+  transition:
+    transform 160ms ease,
+    opacity 160ms ease;
+
+  &:hover:not(:disabled) {
+    transform: translateY(-2px);
+  }
+
+  &:active:not(:disabled) {
+    transform: scale(0.94);
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
 `;
 
 const ComposerWrap = styled.div`
@@ -1701,6 +1885,324 @@ const AttachmentIcon = styled.span<{ $tone: string }>`
   flex-shrink: 0;
 `;
 
+type VoiceRecorderPanelProps = {
+  isRecording: boolean;
+  isPaused: boolean;
+  audioUrl: string | null;
+  duration: number;
+  waveformLevels: number[];
+  pauseRecording: () => void;
+  resumeRecording: () => void;
+  stopRecording: () => Promise<Blob | null>;
+  discardRecording: () => void;
+  sendRecording: (blob?: Blob | null) => Promise<void>;
+  isSending: boolean;
+};
+
+function VoiceRecorderPanel({
+  isRecording,
+  isPaused,
+  audioUrl,
+  duration,
+  waveformLevels,
+  pauseRecording,
+  resumeRecording,
+  stopRecording,
+  discardRecording,
+  sendRecording,
+  isSending,
+}: VoiceRecorderPanelProps) {
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const previewAudioContext = useRef<AudioContext | null>(null);
+  const previewAnalyser = useRef<AnalyserNode | null>(null);
+  const previewAnimationFrame = useRef<number | null>(null);
+  const [previewPlaying, setPreviewPlaying] = useState(false);
+  const [previewTime, setPreviewTime] = useState(0);
+  const [previewDuration, setPreviewDuration] = useState(0);
+  const [previewWaveform, setPreviewWaveform] = useState(waveformLevels);
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    audio.pause();
+    audio.currentTime = 0;
+    setPreviewPlaying(false);
+    setPreviewTime(0);
+    setPreviewWaveform(waveformLevels);
+  }, [audioUrl]);
+
+  useEffect(
+    () => () => {
+      if (previewAnimationFrame.current !== null) {
+        cancelAnimationFrame(previewAnimationFrame.current);
+      }
+      if (previewAudioContext.current) {
+        void previewAudioContext.current.close();
+      }
+    },
+    [],
+  );
+
+  const startPreviewVisualizer = async () => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    try {
+      if (!previewAudioContext.current) {
+        const AudioContextClass =
+          window.AudioContext ||
+          (
+            window as typeof window & {
+              webkitAudioContext?: typeof AudioContext;
+            }
+          ).webkitAudioContext;
+        if (!AudioContextClass) return;
+
+        const context = new AudioContextClass();
+        const analyser = context.createAnalyser();
+        analyser.fftSize = 256;
+        analyser.smoothingTimeConstant = 0.75;
+        context.createMediaElementSource(audio).connect(analyser);
+        analyser.connect(context.destination);
+        previewAudioContext.current = context;
+        previewAnalyser.current = analyser;
+      }
+
+      await previewAudioContext.current.resume();
+      const analyser = previewAnalyser.current;
+      if (!analyser) return;
+
+      const frequencies = new Uint8Array(analyser.frequencyBinCount);
+      const updateWaveform = () => {
+        analyser.getByteFrequencyData(frequencies);
+        const barCount = waveformLevels.length;
+        const levels = Array.from({ length: barCount }, (_, index) => {
+          const start = Math.floor((index / barCount) * frequencies.length);
+          const end = Math.max(
+            start + 1,
+            Math.floor(((index + 1) / barCount) * frequencies.length),
+          );
+          let sum = 0;
+          for (let bin = start; bin < end; bin += 1) sum += frequencies[bin];
+          return Math.max(0.08, Math.min(1, (sum / (end - start)) / 150));
+        });
+        setPreviewWaveform(levels);
+
+        if (!audio.paused && !audio.ended) {
+          previewAnimationFrame.current =
+            requestAnimationFrame(updateWaveform);
+        }
+      };
+
+      if (previewAnimationFrame.current !== null) {
+        cancelAnimationFrame(previewAnimationFrame.current);
+      }
+      updateWaveform();
+    } catch (error: unknown) {
+      console.error("Could not analyze the audio preview waveform.", error);
+    }
+  };
+
+  const toggleCenterAction = async () => {
+    if (isRecording && !isPaused) {
+      pauseRecording();
+      return;
+    }
+
+    const audio = audioRef.current;
+    if (!audio) return;
+    if (audio.paused) {
+      try {
+        await audio.play();
+      } catch {
+        toast.error("Could not play the voice recording.");
+      }
+    } else {
+      audio.pause();
+    }
+  };
+
+  const handleSend = async () => {
+    const blob = await stopRecording();
+    if (blob) await sendRecording(blob);
+  };
+
+  return (
+    <RecBody>
+      <RecHead>
+        <RecStatus>
+          <RecIndicator
+            $recording={isRecording}
+            aria-label={isRecording ? "Recording" : "Recording paused"}
+          />
+          <Timer>
+            {Math.floor(duration / 60)}:
+            {String(duration % 60).padStart(2, "0")}
+          </Timer>
+        </RecStatus>
+        {isPaused && (
+          <ResumeRecordingButton
+            type="button"
+            onClick={() => {
+              audioRef.current?.pause();
+              resumeRecording();
+            }}
+          >
+            <Mic size={15} />
+            Continue
+          </ResumeRecordingButton>
+        )}
+      </RecHead>
+
+      {isRecording && !isPaused && (
+        <RecordingWave role="img" aria-label="Voice recording waveform">
+          {waveformLevels.map((level, index) => (
+            <RecordingWaveBar key={index} $level={level} />
+          ))}
+        </RecordingWave>
+      )}
+
+      {audioUrl && (
+        <AudioPreviewBubble>
+          <audio
+            ref={audioRef}
+            src={audioUrl}
+            preload="metadata"
+            onLoadedMetadata={(event) =>
+              setPreviewDuration(event.currentTarget.duration)
+            }
+            onTimeUpdate={(event) =>
+              setPreviewTime(event.currentTarget.currentTime)
+            }
+            onPlay={() => {
+              setPreviewPlaying(true);
+              void startPreviewVisualizer();
+            }}
+            onPause={() => {
+              setPreviewPlaying(false);
+              if (previewAnimationFrame.current !== null) {
+                cancelAnimationFrame(previewAnimationFrame.current);
+                previewAnimationFrame.current = null;
+              }
+            }}
+            onEnded={(event) => {
+              event.currentTarget.currentTime = 0;
+              setPreviewPlaying(false);
+              setPreviewTime(0);
+              if (previewAnimationFrame.current !== null) {
+                cancelAnimationFrame(previewAnimationFrame.current);
+                previewAnimationFrame.current = null;
+              }
+            }}
+          />
+          <AudioPreviewWave
+            role="slider"
+            aria-label="Audio preview position"
+            aria-valuemin={0}
+            aria-valuemax={Math.floor(previewDuration)}
+            aria-valuenow={Math.floor(previewTime)}
+            aria-valuetext={`${Math.floor(previewTime)} of ${Math.floor(previewDuration)} seconds`}
+            tabIndex={0}
+            onClick={(event) => {
+              const bounds = event.currentTarget.getBoundingClientRect();
+              const position = Math.min(
+                1,
+                Math.max(0, (event.clientX - bounds.left) / bounds.width),
+              );
+              const nextTime = position * previewDuration;
+              if (audioRef.current) {
+                audioRef.current.currentTime = nextTime;
+                setPreviewTime(nextTime);
+              }
+            }}
+            onKeyDown={(event) => {
+              if (!audioRef.current) return;
+              if (event.key === "ArrowRight") {
+                audioRef.current.currentTime = Math.min(
+                  previewDuration,
+                  previewTime + 1,
+                );
+              } else if (event.key === "ArrowLeft") {
+                audioRef.current.currentTime = Math.max(0, previewTime - 1);
+              } else {
+                return;
+              }
+              event.preventDefault();
+              setPreviewTime(audioRef.current.currentTime);
+            }}
+          >
+            {previewWaveform.map((level, index) => (
+              <AudioPreviewWaveBar
+                key={index}
+                $level={level}
+                $played={
+                  previewDuration > 0 &&
+                  index / previewWaveform.length <=
+                    previewTime / previewDuration
+                }
+              />
+            ))}
+          </AudioPreviewWave>
+        </AudioPreviewBubble>
+      )}
+
+      <RecActions>
+        <AudioActionButton
+          type="button"
+          aria-label="Delete voice recording"
+          title="Delete recording"
+          $tone="neutral"
+          onClick={discardRecording}
+        >
+          <Trash2 size={20} />
+        </AudioActionButton>
+
+        <AudioActionButton
+          type="button"
+          aria-label={
+            isRecording && !isPaused
+              ? "Pause recording"
+              : previewPlaying
+                ? "Pause preview"
+                : "Play preview"
+          }
+          title={
+            isRecording && !isPaused
+              ? "Pause recording"
+              : previewPlaying
+                ? "Pause preview"
+                : "Play preview"
+          }
+          $tone="primary"
+          disabled={!isRecording && !audioUrl}
+          onClick={toggleCenterAction}
+        >
+          {((isRecording && !isPaused) || previewPlaying) ? (
+            <Pause size={21} fill="currentColor" />
+          ) : (
+            <Play size={21} fill="currentColor" />
+          )}
+        </AudioActionButton>
+
+        <AudioActionButton
+          type="button"
+          aria-label="Send voice note"
+          title="Send voice note"
+          $tone="send"
+          disabled={isSending || (!isRecording && !audioUrl)}
+          onClick={handleSend}
+        >
+          {isSending ? (
+            <SendingSpinner size={22} aria-label="Sending voice note" />
+          ) : (
+            <Send size={20} />
+          )}
+        </AudioActionButton>
+      </RecActions>
+    </RecBody>
+  );
+}
+
 const RecBody = styled.div`
   display: flex;
   flex-direction: column;
@@ -1710,18 +2212,173 @@ const RecHead = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 12px;
+`;
+const RecStatus = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 12px;
 `;
 const RecTitle = styled.div`
-  font-weight: 700;
+  color: ${({ theme }) => theme.colors.textPrimary};
   font-size: 17px;
+  font-weight: 700;
+`;
+const RecIndicator = styled.span<{ $recording: boolean }>`
+  width: 12px;
+  height: 12px;
+  flex: 0 0 12px;
+  border-radius: 50%;
+  background: ${({ $recording, theme }) =>
+    $recording ? theme.colors.error : theme.colors.success};
+  box-shadow: ${({ $recording }) =>
+    $recording ? "0 0 0 5px rgba(255, 59, 48, 0.12)" : "none"};
+  animation: ${({ $recording }) =>
+    $recording ? "recordingPulse 1.2s ease-in-out infinite" : "none"};
+
+  @keyframes recordingPulse {
+    50% {
+      box-shadow: 0 0 0 9px rgba(255, 59, 48, 0.04);
+      opacity: 0.72;
+    }
+  }
 `;
 const Timer = styled.div`
+  flex-shrink: 0;
+  padding: 7px 10px;
+  border-radius: 12px;
+  background: ${({ theme }) => theme.colors.secondarySoft};
   color: ${({ theme }) => theme.colors.secondary};
   font-weight: 700;
+  font-variant-numeric: tabular-nums;
+`;
+const ResumeRecordingButton = styled.button`
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 11px;
+  border: 0;
+  border-radius: 999px;
+  background: ${({ theme }) => theme.colors.secondarySoft};
+  color: ${({ theme }) => theme.colors.secondary};
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
 `;
 const RecActions = styled.div`
   display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 0 2px;
+`;
+const AudioActionButton = styled.button<{
+  $tone: "primary" | "neutral" | "send";
+}>`
+  width: 54px;
+  height: 54px;
+  flex: 0 0 54px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: ${({ $tone, theme }) =>
+    $tone === "primary" || $tone === "send"
+      ? "#fff"
+      : theme.colors.textPrimary};
+  background: ${({ $tone, theme }) =>
+    $tone === "primary"
+      ? theme.colors.secondary
+      : $tone === "send"
+        ? theme.colors.secondary
+        : theme.colors.surface};
+  box-shadow: ${({ $tone, theme }) =>
+    $tone === "primary" ? theme.shadows.orange : theme.shadows.sm};
+  transition:
+    transform 160ms ease,
+    opacity 160ms ease;
+
+  &:hover:not(:disabled) {
+    transform: translateY(-2px);
+  }
+
+  &:active:not(:disabled) {
+    transform: scale(0.94);
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+`;
+const SendingSpinner = styled(LoaderCircle)`
+  animation: audio-send-spin 0.8s linear infinite;
+
+  @keyframes audio-send-spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+`;
+
+const AudioPreviewBubble = styled.div`
+  display: flex;
+  align-items: center;
   gap: 12px;
+  width: 100%;
+  min-height: 40px;
+  padding: 8px 12px;
+  border-radius: 14px;
+  background: transparent;
+  box-shadow: none;
+
+  audio {
+    display: none;
+  }
+`;
+const AudioPreviewWave = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2px;
+  width: 100%;
+  min-width: 0;
+  height: 30px;
+  cursor: pointer;
+  touch-action: none;
+`;
+const AudioPreviewWaveBar = styled.span<{
+  $level: number;
+  $played: boolean;
+}>`
+  width: 3px;
+  min-width: 2px;
+  height: ${({ $level }) => `${Math.max(4, 4 + $level * 22)}px`};
+  border-radius: 999px;
+  background: ${({ $played, theme }) =>
+    $played ? theme.colors.secondary : theme.colors.textSecondary};
+  opacity: ${({ $played }) => ($played ? 1 : 0.45)};
+  transition:
+    height 80ms ease,
+    background 100ms ease;
+`;
+const RecordingWave = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  width: 100%;
+  height: 44px;
+  padding: 0 4px;
+`;
+const RecordingWaveBar = styled.span<{ $level: number }>`
+  width: 3px;
+  height: ${({ $level }) => `${Math.max(4, 4 + $level * 32)}px`};
+  border-radius: 999px;
+  background: ${({ theme }) => theme.colors.secondary};
+  opacity: ${({ $level }) => 0.55 + $level * 0.45};
+  transition:
+    height 80ms ease,
+    opacity 80ms ease;
 `;
 
 const PreviewImage = styled.img`
@@ -1781,11 +2438,6 @@ const SendRecBtn = styled(Button)`
   align-items: center;
   justify-content: center;
   gap: 8px;
-`;
-
-const VideoCancelBtn = styled(CancelBtn)`
-  background: rgba(255, 255, 255, 0.14);
-  color: #fff;
 `;
 
 const ReplyPreview = styled.div`

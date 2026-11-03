@@ -34,7 +34,10 @@ import {
   useWebSocketStore,
   // type CachedMessages,
 } from "@/store/websocket.store";
-import { formatMessageDate, formatTime } from "@/utils/dates";
+import {
+  formatMessageDate,
+  formatRecentDate,
+} from "@/utils/dates";
 import { useGetUserQuery } from "#/hooks/queries/useUsers";
 import { AnimatePresence, motion } from "framer-motion";
 import { useNewMsgTrigger } from "#/hooks/useNewMessageTrigger";
@@ -179,11 +182,15 @@ const chatPage = ({ conversationId, recipientId }: ChatPageProps) => {
 
   const {
     isRecording,
+    isPaused,
     startRecording,
+    pauseRecording,
+    resumeRecording,
     stopRecording,
     audioBlob,
     audioUrl,
     duration,
+    waveformLevels,
     resetAudio,
   } = useAudioRecorder();
 
@@ -384,7 +391,7 @@ const chatPage = ({ conversationId, recipientId }: ChatPageProps) => {
         <Status>
           {userData.data.isOnline
             ? "online now"
-            : formatTime(userData.data.lastSeen || "")}
+            : formatRecentDate(userData.data.lastSeen || "")}
         </Status>
       </Who>
 
@@ -427,7 +434,7 @@ const chatPage = ({ conversationId, recipientId }: ChatPageProps) => {
         <Status>
           {RecipientIsOnline
             ? "online now"
-            : formatTime(RecipientLastSeen || "")}
+            : formatRecentDate(RecipientLastSeen || "")}
         </Status>
       </Who>
       <CallActions>
@@ -460,8 +467,12 @@ const chatPage = ({ conversationId, recipientId }: ChatPageProps) => {
       conversationId={conversationId ?? ""}
       startRecording={startRecording}
       isRecording={isRecording}
+      isPaused={isPaused}
       audioUrl={audioUrl}
       duration={duration}
+      waveformLevels={waveformLevels}
+      pauseRecording={pauseRecording}
+      resumeRecording={resumeRecording}
       resetAudio={resetAudio}
       audioBlob={audioBlob}
       stopRecording={stopRecording}

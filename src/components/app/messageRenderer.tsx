@@ -366,7 +366,6 @@ export const MessageRenderer = ({
             isDeleted={message.isDeleted}
             mine={mine}
             audio={message.attachmentUrl ?? ""}
-            duration={message.duration ?? 0}
             time={formatTime(message.createdAt)}
             isRead={message.isRead}
           />

@@ -18,7 +18,7 @@ import { useGetConversationsQuery } from "#/hooks/queries/useConversation";
 import { ConversationListSkeleton, LoadingOlder } from "./Loader";
 import { EmptyBoxIcon } from "../icons/emptyBox";
 import { Avatar } from "./Avatar";
-import { formatTime } from "#/utils/dates";
+import { formatRecentDate, formatTime } from "#/utils/dates";
 import { Badge } from "./Badge";
 import { useAuthStore, useUserProfile } from "#/store/auth.store";
 import { useWebSocketStore } from "#/store/websocket.store";
@@ -213,7 +213,9 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
                     <ConversationTop>
                       <UserName>{item?.recipient?.username ?? ""}</UserName>
                       <Time $unread={item?.unreadCount > 0}>
-                        {formatTime(item?.updatedAt ?? "")}
+                        {item?.recipient?.isOnline
+                          ? formatTime(item?.updatedAt ?? "")
+                          : formatRecentDate(item?.updatedAt ?? "")}
                       </Time>
                     </ConversationTop>
 

@@ -16,7 +16,6 @@ import { MessageContentWidth } from "./FileContent";
 interface AudioContentProps {
   mine: boolean;
   audio: string;
-  duration: number;
   time: string;
   isRead: boolean;
   status?: MessageStatus;
@@ -27,7 +26,6 @@ interface AudioContentProps {
 export const AudioContent = ({
   mine,
   audio,
-  duration,
   time,
   isRead,
   status,
@@ -197,8 +195,6 @@ export const AudioContent = ({
             ))}
           </Wave>
 
-          <Duration>{duration}s</Duration>
-
           <MetaRow>
             <Time $mine={mine}>{time}</Time>
           </MetaRow>
@@ -347,13 +343,6 @@ const Bar = styled.span<{
   transform-origin: center;
   animation: ${({ $playing }) => ($playing ? pulse : "none")} 1.2s ease-in-out
     ${({ $i }) => $i * 0.07}s infinite;
-`;
-const Duration = styled.span`
-  flex-shrink: 0;
-  font-size: 11px;
-  font-weight: 500;
-  opacity: 0.75;
-  align-self: center;
 `;
 const MetaRow = styled.div`
   position: absolute;
