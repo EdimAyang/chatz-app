@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
-import styled from "styled-components";
-import { Mail } from "lucide-react";
+import styled, { keyframes } from "styled-components";
+import { LoaderCircle, Mail } from "lucide-react";
 import type { FormEvent } from "react";
 import { createPortal } from "react-dom";
 import { useState } from "react";
@@ -130,6 +130,10 @@ const ReminderCancelButton = styled.button`
 `;
 
 const ReminderSubmitButton = styled.button`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   min-width: 130px;
   padding: 10px 16px;
   border: none;
@@ -155,6 +159,16 @@ const ReminderSubmitButton = styled.button`
     cursor: wait;
     opacity: 0.6;
   }
+`;
+
+const submitSpinner = keyframes`
+  to {
+    transform: rotate(360deg);
+  }
+`;
+
+const ReminderSpinner = styled(LoaderCircle)`
+  animation: ${submitSpinner} 0.8s linear infinite;
 `;
 
 const ForgotPassword = () => {
@@ -248,9 +262,14 @@ const ForgotPassword = () => {
                   form="forgot-password-form"
                   disabled={forgotPasswordMutation.isPending}
                 >
-                  {forgotPasswordMutation.isPending
-                    ? "Sending..."
-                    : "Send reset link"}
+                  {forgotPasswordMutation.isPending ? (
+                    <>
+                      <ReminderSpinner size={16} aria-label="Sending" />
+                      Sending...
+                    </>
+                  ) : (
+                    "Send reset link"
+                  )}
                 </ReminderSubmitButton>
               </ReminderActions>
             </ReminderDialog>

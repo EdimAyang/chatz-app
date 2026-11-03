@@ -12,6 +12,18 @@ export const formatTime = (value: string | Date) => {
   return format(date, "hh:mm a");
 };
 
+export const formatRecentDate = (value: string | Date) => {
+  const date = new Date(value);
+
+  if (!isValid(date)) {
+    console.error("Invalid date:", value);
+    return "";
+  }
+
+  const isOlderThanWeek = Date.now() - date.getTime() > 7 * 24 * 60 * 60 * 1000;
+  return format(date, isOlderThanWeek ? "MMM d, yyyy" : "hh:mm a");
+};
+
 export const getGreeting = (date: string | Date) => {
   const hour = getHours(new Date(date));
 

@@ -5,7 +5,7 @@ import ChatPage from "#/components/app/chatPage";
 
 const Chat = () => {
   const { conversationId } = useParams();
-  console.log(conversationId)
+  // console.log(conversationId)
 
   
 

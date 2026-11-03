@@ -58,11 +58,6 @@ const Bar = styled.span<{
   animation: ${({ $playing }) => ($playing ? pulse : "none")} 1.2s ease-in-out
     ${({ $i }) => $i * 0.07}s infinite;
 `;
-const Duration = styled.span`
-  font-size: 12px;
-  opacity: 0.85;
-`;
-
 const Time = styled.span<{ $mine: boolean }>`
   display: block;
   font-size: 10.5px;
@@ -95,7 +90,6 @@ type AudioBubbleProps = {
 export function AudioBubble({
   mine,
   audio,
-  duration,
   time,
   isRead,
 }: AudioBubbleProps) {
@@ -243,7 +237,6 @@ export function AudioBubble({
           ))}
         </Wave>
 
-        <Duration>{duration}s</Duration>
         <Time $mine={mine}>{time}</Time>
         {mine && (
           <StatusIcon $mine={mine} $read={Boolean(isRead)}>

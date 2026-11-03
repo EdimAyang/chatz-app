@@ -9,7 +9,7 @@ import { Trash2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Avatar } from "./Avatar";
 import { Badge } from "./Badge";
-import { formatTime } from "@/utils/dates";
+import { formatRecentDate, formatTime } from "@/utils/dates";
 import { PATHS } from "#/lib/paths";
 import { useWebSocketStore } from "#/store/websocket.store";
 import { useUserProfile } from "#/store/auth.store";
@@ -103,7 +103,9 @@ export function ConversationCard({
             <TopRow>
               <Name>{c?.recipient?.username ?? ""}</Name>
               <Time $unread={c?.unreadCount > 0}>
-                {formatTime(c?.updatedAt ?? "")}
+                {c?.recipient?.isOnline
+                  ? formatTime(c?.updatedAt ?? "")
+                  : formatRecentDate(c?.updatedAt ?? "")}
               </Time>
             </TopRow>
             <BottomRow>
