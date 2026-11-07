@@ -145,6 +145,7 @@ export default function ChatInput({
 
   const typing = useRef(false);
   const timeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  
 
   //   const { profile } = useUserProfile();
   const sendAudioMutation = useSendAudio();
@@ -1125,59 +1126,60 @@ export default function ChatInput({
         }}
       />
 
-      {replyingTo && (
-        <ReplyPreview>
-          <ReplyPreviewContent>
-            <ReplyPreviewTitle>
-              Replying to{" "}
-              {replyingTo.senderId === user?.id ? "yourself" : "message"}
-            </ReplyPreviewTitle>
-
-            <ReplyPreviewText>{getReplyPreview(replyingTo)}</ReplyPreviewText>
-          </ReplyPreviewContent>
-
-          <CloseReplyButton
-            type="button"
-            onClick={() => {
-              setReplyingTo(null);
-            }}
-            aria-label="Cancel reply"
-          >
-            <X size={18} />
-          </CloseReplyButton>
-        </ReplyPreview>
-      )}
-
-      {editingMessage && (
-        <EditBar>
-          <div>
-            <EditLabel>Editing message</EditLabel>
-            <EditPreview>{editingMessage.message}</EditPreview>
-          </div>
-
-          <EditActions>
-            <DeleteEdit
-              type="button"
-              aria-label="Delete message"
-              onClick={()=>setDeleteMsg(true)}
-            >
-              <Trash2 size={16} />
-            </DeleteEdit>
-
-            <CancelEdit
-              type="button"
-              aria-label="Cancel edit"
-              onClick={() => {
-                setEditingMessage(null);
-                reset();
-              }}
-            >
-              <XIcon size={16} />
-            </CancelEdit>
-          </EditActions>
-        </EditBar>
-      )}
       <Composer onSubmit={handleSubmit(onSubmit)}>
+        {replyingTo && (
+          <ReplyPreview>
+            <ReplyPreviewContent>
+              <ReplyPreviewTitle>
+                Replying to{" "}
+                {replyingTo.senderId === user?.id ? "yourself" : "message"}
+              </ReplyPreviewTitle>
+
+              <ReplyPreviewText>{getReplyPreview(replyingTo)}</ReplyPreviewText>
+            </ReplyPreviewContent>
+
+            <CloseReplyButton
+              type="button"
+              onClick={() => {
+                setReplyingTo(null);
+              }}
+              aria-label="Cancel reply"
+            >
+              <X size={18} />
+            </CloseReplyButton>
+          </ReplyPreview>
+        )}
+
+        {editingMessage && (
+          <EditBar>
+            <div>
+              <EditLabel>Editing message</EditLabel>
+              <EditPreview>{editingMessage.message}</EditPreview>
+            </div>
+
+            <EditActions>
+              <DeleteEdit
+                type="button"
+                aria-label="Delete message"
+                onClick={() => setDeleteMsg(true)}
+              >
+                <Trash2 size={16} />
+              </DeleteEdit>
+
+              <CancelEdit
+                type="button"
+                aria-label="Cancel edit"
+                onClick={() => {
+                  setEditingMessage(null);
+                  reset();
+                }}
+              >
+                <XIcon size={16} />
+              </CancelEdit>
+            </EditActions>
+          </EditBar>
+        )}
+
         {showEmojiPicker && (
           <EmojiPickerComponent
             handleEmojiClick={handleEmojiClick}
