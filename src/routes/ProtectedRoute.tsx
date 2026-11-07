@@ -3,7 +3,6 @@ import { PATHS } from "@/lib/paths";
 import { LoadingScreen } from "@/components/app/Loader";
 import { useProfileQuery } from "@/hooks/queries/useProfile";
 import { useAuthStore, useUserProfile } from "@/store/auth.store";
-import { useWebSocketStore } from "@/store/websocket.store";
 import { useEffect } from "react";
 import toast from "react-hot-toast";
 import { useWebSocket } from "#/hooks/useWebsocket";
@@ -27,9 +26,7 @@ const ProtectedRoute = () => {
     }
   }, [isAuthenticated]);
 
-
   const { setProfile } = useUserProfile();
-  const { connect } = useWebSocketStore();
 
   const { data, error } = useProfileQuery(user?.id || "");
 
@@ -46,12 +43,6 @@ const ProtectedRoute = () => {
       setProfile(data);
     }
   }, [data, setProfile]);
-
-  useEffect(() => {
-    if (!isAuthenticated && !token) return;
-
-    connect(token);
-  }, [connect, isAuthenticated, token]);
 
   if (error) {
     throw error;
