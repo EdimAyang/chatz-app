@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import styled from "styled-components";
+import styled, { keyframes } from "styled-components";
 import { motion } from "framer-motion";
 import {
   Moon,
@@ -9,9 +9,12 @@ import {
   BellPlus,
   BellRing,
   BellOff,
+  LockKeyhole,
+  LoaderCircle,
 } from "lucide-react";
 import { Avatar } from "@/components/app/Avatar";
 import { Divider } from "@/components/app/Divider";
+import { Modal } from "@/components/app/Modal";
 import { useThemeStore } from "#/store/theme.store";
 import { useAuthStore, useUserProfile } from "@/store/auth.store";
 import { PATHS } from "@/lib/paths";
@@ -25,12 +28,104 @@ import { getFirebaseMessagingInstance } from "@/firebase/index";
 import { registerFirebaseMessagingSW } from "@/firebase/register";
 import { api } from "#/api/axios";
 import toast from "react-hot-toast";
+import { useEffect, useState } from "react";
+import {
+  readAppLockSettings,
+  registerBiometric,
+  removeAppLockSettings,
+  requestAppLock,
+  saveAppLockSettings,
+} from "#/biometrics";
+
+const APP_LOCK_DURATIONS = [
+  { value: 0, label: "Immediately" },
+  { value: 1, label: "After 1 minute" },
+  { value: 5, label: "After 5 minutes" },
+  { value: 10, label: "After 10 minutes" },
+  { value: 15, label: "After 15 minutes" },
+];
+
+const spinnerAnimation = keyframes`
+  to {
+    transform: rotate(360deg);
+  }
+`;
 
 const Settings = () => {
   const { mode, toggle } = useThemeStore();
   const { permission, requestPermission } = useNotificationPermission();
+  const userId = useAuthStore((state) => state.user?.id);
+  const [appLockDelay, setAppLockDelay] = useState<number | null>(() =>
+    userId ? (readAppLockSettings(userId)?.delayMinutes ?? null) : null,
+  );
+  const [isDurationDialogOpen, setIsDurationDialogOpen] = useState(false);
+  const [bioLoading, setBioLoading] = useState(false);
 
   const notificationsEnabled = permission === "granted";
+
+  useEffect(() => {
+    if (!userId) {
+      setAppLockDelay(null);
+      return;
+    }
+
+    const updateAppLockDelay = () => {
+      setAppLockDelay(readAppLockSettings(userId)?.delayMinutes ?? null);
+    };
+
+    updateAppLockDelay();
+    window.addEventListener("app-lock-settings-changed", updateAppLockDelay);
+    window.addEventListener("storage", updateAppLockDelay);
+
+    return () => {
+      window.removeEventListener(
+        "app-lock-settings-changed",
+        updateAppLockDelay,
+      );
+      window.removeEventListener("storage", updateAppLockDelay);
+    };
+  }, [userId]);
+
+  const openAppLockSettings = () => {
+    setIsDurationDialogOpen(true);
+  };
+
+  const saveAppLockDuration = async (delayMinutes: number) => {
+    if (!userId || bioLoading) return;
+
+    setBioLoading(true);
+    try {
+      const isFirstSetup = appLockDelay === null;
+      let authenticatorAlreadyRegistered = false;
+      if (isFirstSetup) {
+        const registration = await registerBiometric();
+        authenticatorAlreadyRegistered = registration.alreadyRegistered;
+      }
+
+      saveAppLockSettings(userId, { delayMinutes });
+      setAppLockDelay(delayMinutes);
+      setIsDurationDialogOpen(false);
+      toast.success(
+        isFirstSetup && authenticatorAlreadyRegistered
+          ? "Your existing authenticator is ready. App lock is enabled."
+          : isFirstSetup
+            ? "App lock enabled on this device."
+          : "App lock duration updated.",
+      );
+    } catch (error) {
+      setAppLockDelay(
+        readAppLockSettings(userId)?.delayMinutes ?? null,
+      );
+      console.error("Could not enable app lock.", error);
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Could not enable app lock. Please try again.",
+      );
+    } finally {
+      setBioLoading(false);
+    }
+  };
 
   const enableNotifications = async () => {
     if (Notification.permission === "denied") {
@@ -70,13 +165,16 @@ const Settings = () => {
         deviceToken: token,
       });
     } catch (error) {
-      throw new Error((error as Error).message || "An error occurred while registering for push notifications");
+      throw new Error(
+        (error as Error).message ||
+          "An error occurred while registering for push notifications",
+      );
     }
   };
 
   const dark = mode === "dark";
   // const nav = useNavigate();
-  const { logout } = useAuthStore();
+  const logout = useAuthStore((state) => state.logout);
   const { profile } = useUserProfile();
 
   const { disconnect } = useWebSocketStore();
@@ -189,6 +287,35 @@ const Settings = () => {
               />
             </Toggle>
           </Item>
+          <Divider />
+          <Item as="div">
+            <IconWrap $bg="#F0E9FF" $c="#7656D6">
+              <LockKeyhole size={18} />
+            </IconWrap>
+            <Lbl>App lock</Lbl>
+            <LockAction
+              type="button"
+              onClick={openAppLockSettings}
+              aria-label="Configure app lock"
+            >
+              {appLockDelay === null
+                ? "Set up"
+                : appLockDelay === 0
+                  ? "Immediately"
+                  : `${appLockDelay} min`}
+            </LockAction>
+            {appLockDelay !== null && (
+              <PreviewLockButton
+                type="button"
+                onClick={requestAppLock}
+                aria-label="Lock Chatz now"
+                title="Lock Chatz now"
+              >
+                <LockNowIcon size={15} />
+                Lock now
+              </PreviewLockButton>
+            )}
+          </Item>
 
           {/* <Divider />
         <Item>
@@ -218,6 +345,59 @@ const Settings = () => {
       <MobileNav>
         <BottomNav />
       </MobileNav>
+
+      <Modal
+        open={isDurationDialogOpen}
+        onClose={() => {
+          if (!bioLoading) setIsDurationDialogOpen(false);
+        }}
+      >
+        <DialogTitle>Lock app after</DialogTitle>
+        <DialogDescription>
+          {appLockDelay === null &&
+            " The first time, your device will ask you to register a fingerprint or passkey."}
+        </DialogDescription>
+        <DurationOptions role="radiogroup" aria-label="App lock duration">
+          {APP_LOCK_DURATIONS.map(({ value, label }) => (
+            <DurationOption
+              key={value}
+              type="button"
+              role="radio"
+              aria-checked={appLockDelay === value}
+              $selected={appLockDelay === value}
+              disabled={bioLoading}
+              onClick={() => void saveAppLockDuration(value)}
+            >
+              <span>{label}</span>
+              <RadioMark $selected={appLockDelay === value} />
+            </DurationOption>
+          ))}
+        </DurationOptions>
+        <DialogActions>
+          {appLockDelay !== null && (
+            <DisableLockButton
+              type="button"
+              onClick={() => {
+                if (!userId) return;
+                removeAppLockSettings(userId);
+                setAppLockDelay(null);
+                setIsDurationDialogOpen(false);
+              }}
+              disabled={bioLoading}
+            >
+              Turn off app lock
+            </DisableLockButton>
+          )}
+          {bioLoading && (
+            <SavingStatus role="status" aria-live="polite">
+              <ButtonSpinner size={16} aria-hidden="true" />
+              {appLockDelay === null
+                ? "Registering device and enabling app lock…"
+                : "Saving app lock duration…"}
+            </SavingStatus>
+          )}
+        </DialogActions>
+      </Modal>
     </>
   );
 };
@@ -329,4 +509,114 @@ const LogoutBtn = styled.button`
   justify-content: center;
   gap: 8px;
   // margin-bottom: 7rem;
+`;
+
+const LockAction = styled.button`
+  padding: 8px;
+  border-radius: 12px;
+  background: ${({ theme }) => theme.colors.background};
+  color: ${({ theme }) => theme.colors.textSecondary};
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+`;
+
+const PreviewLockButton = styled.button`
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 6px 8px;
+  border-radius: 10px;
+  background: ${({ theme }) => theme.colors.secondarySoft};
+  color: ${({ theme }) => theme.colors.secondary};
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+`;
+
+const LockNowIcon = styled(LockKeyhole)`
+  flex-shrink: 0;
+`;
+
+const DialogTitle = styled.h2`
+  margin: 0;
+  color: ${({ theme }) => theme.colors.textPrimary};
+  font-size: 20px;
+`;
+
+const DialogDescription = styled.p`
+  margin: 8px 0 18px;
+  color: ${({ theme }) => theme.colors.textSecondary};
+  font-size: 14px;
+  line-height: 1.5;
+`;
+
+const DurationOptions = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+`;
+
+const DurationOption = styled.button<{ $selected: boolean }>`
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px;
+  border-radius: 12px;
+  background: ${({ $selected, theme }) =>
+    $selected ? theme.colors.background : "transparent"};
+  color: ${({ theme }) => theme.colors.textPrimary};
+  font-size: 14px;
+  text-align: left;
+`;
+
+const RadioMark = styled.span<{ $selected: boolean }>`
+  width: 18px;
+  height: 18px;
+  border: 2px solid
+    ${({ $selected, theme }) =>
+      $selected ? theme.colors.secondary : theme.colors.textTertiary};
+  border-radius: 50%;
+  position: relative;
+
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 3px;
+    border-radius: 50%;
+    background: ${({ $selected, theme }) =>
+      $selected ? theme.colors.secondary : "transparent"};
+  }
+`;
+
+const DialogActions = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 20px;
+`;
+
+const SavingStatus = styled.p`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: ${({ theme }) => theme.colors.textSecondary};
+  font-size: 13px;
+`;
+
+const DisableLockButton = styled.button`
+  width: 100%;
+  padding: 10px;
+  color: ${({ theme }) => theme.colors.error};
+  font-size: 14px;
+  font-weight: 700;
+`;
+
+const ButtonSpinner = styled(LoaderCircle)`
+  animation: ${spinnerAnimation} 0.9s linear infinite;
+  font-size: 13px;
 `;

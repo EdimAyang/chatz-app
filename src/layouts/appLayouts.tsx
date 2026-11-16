@@ -6,35 +6,38 @@ import { useWhatsNew } from "#/hooks/useWhatsNew";
 import { WhatsNewModal } from "#/components/app/WhatsNewModal";
 import { GlobalCallOverlay } from "@/components/app/chatPage";
 import IncomingCallRingtone from "#/components/app/IncomingCallRinger";
+import AppLockGate from "@/components/app/AppLockGate";
 
 const AppLayout = () => {
   const { show, close, update } = useWhatsNew();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   return (
-    <>
-      <Layout>
-        <DesktopSidebar $collapsed={sidebarCollapsed}>
-          <Sidebar
-            collapsed={sidebarCollapsed}
-            onToggle={() => setSidebarCollapsed((prev) => !prev)}
-          />
-        </DesktopSidebar>
+    <AppLockGate>
+      <>
+        <Layout>
+          <DesktopSidebar $collapsed={sidebarCollapsed}>
+            <Sidebar
+              collapsed={sidebarCollapsed}
+              onToggle={() => setSidebarCollapsed((prev) => !prev)}
+            />
+          </DesktopSidebar>
 
-        <MainContent>
-          <Outlet />
-        </MainContent>
-        {show && (
-          <WhatsNewModal
-            title={update.title}
-            version={update.version}
-            features={update.features}
-            onClose={close}
-          />
-        )}
-      </Layout>
-      <GlobalCallOverlay />
-      <IncomingCallRingtone />
-    </>
+          <MainContent>
+            <Outlet />
+          </MainContent>
+          {show && (
+            <WhatsNewModal
+              title={update.title}
+              version={update.version}
+              features={update.features}
+              onClose={close}
+            />
+          )}
+        </Layout>
+        <GlobalCallOverlay />
+        <IncomingCallRingtone />
+      </>
+    </AppLockGate>
   );
 };
 
