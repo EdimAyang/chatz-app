@@ -34,4 +34,13 @@ export const ENDPOINTS = {
   SEND_IMAGE: "media/photo",
   SEND_VIDEO: "media/video",
   SEND_DOCUMENT: "media/document",
+
+
+  //biometrics
+  BIOMETRIC_REGISTER_OPTIONS: "biometrics/register/options",
+  BIOMETRIC_REGISTER_VERIFY: "biometrics/register/verify",
+  BIOMETRIC_AUTHENTICATE_OPTIONS: "biometrics/authenticate/options",
+  BIOMETRIC_AUTHENTICATE_VERIFY: "biometrics/authenticate/verify",
 } as const;
+
+
