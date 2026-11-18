@@ -18,7 +18,7 @@ type AppLockGateProps = {
 
 const shouldLockOnStartup = (userId: string) => {
   const settings = readAppLockSettings(userId);
-  if (!settings) return false;
+  if (!settings?.enabled) return false;
 
   const backgroundAt = Number(
     sessionStorage.getItem(getAppLockBackgroundKey(userId)),
@@ -44,7 +44,7 @@ export default function AppLockGate({ children }: AppLockGateProps) {
     if (!userId) return;
     const currentSettings = readAppLockSettings(userId);
     setSettings(currentSettings);
-    if (currentSettings) setIsLocked(true);
+    if (currentSettings?.enabled) setIsLocked(true);
   }, [userId]);
 
   useEffect(() => {
@@ -69,7 +69,7 @@ export default function AppLockGate({ children }: AppLockGateProps) {
       const currentSettings = readAppLockSettings(userId);
       const backgroundAt = Number(sessionStorage.getItem(backgroundKey));
       if (
-        currentSettings &&
+        currentSettings?.enabled &&
         backgroundAt &&
         Date.now() - backgroundAt >= currentSettings.delayMinutes * 60_000
       ) {
@@ -85,7 +85,7 @@ export default function AppLockGate({ children }: AppLockGateProps) {
     const handleSettingsChanged = () => {
       const nextSettings = readAppLockSettings(userId);
       setSettings(nextSettings);
-      if (!nextSettings) {
+      if (!nextSettings?.enabled) {
         setIsLocked(false);
         sessionStorage.removeItem(backgroundKey);
       }
@@ -96,8 +96,8 @@ export default function AppLockGate({ children }: AppLockGateProps) {
 
       const nextSettings = readAppLockSettings(userId);
       setSettings(nextSettings);
-      setIsLocked(Boolean(nextSettings));
-      if (!nextSettings) sessionStorage.removeItem(backgroundKey);
+      setIsLocked(Boolean(nextSettings?.enabled));
+      if (!nextSettings?.enabled) sessionStorage.removeItem(backgroundKey);
     };
 
     const handleLockRequested = () => lockForUser();
