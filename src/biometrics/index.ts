@@ -1,8 +1,12 @@
-import { startAuthentication, startRegistration } from "@simplewebauthn/browser";
+import {
+  startAuthentication,
+  startRegistration,
+} from "@simplewebauthn/browser";
 import { api } from "@/api/axios";
 import { ENDPOINTS } from "@/api/endpoints";
 
 export type AppLockSettings = {
+  enabled: boolean;
   delayMinutes: number;
 };
 
@@ -17,9 +21,7 @@ const notifyAppLockChange = () => {
 export const getAppLockStorageKey = appLockStorageKey;
 export const getAppLockBackgroundKey = appLockBackgroundKey;
 
-export const readAppLockSettings = (
-  userId: string,
-): AppLockSettings | null => {
+export const readAppLockSettings = (userId: string): AppLockSettings | null => {
   const rawSettings = localStorage.getItem(appLockStorageKey(userId));
   if (!rawSettings) return null;
 
@@ -28,18 +30,23 @@ export const readAppLockSettings = (
     if (
       typeof parsed === "object" &&
       parsed !== null &&
+      "enabled" in parsed &&
+      typeof parsed.enabled === "boolean" &&
       "delayMinutes" in parsed &&
       typeof parsed.delayMinutes === "number" &&
       [0, 1, 5, 10, 15].includes(parsed.delayMinutes)
     ) {
-      return { delayMinutes: parsed.delayMinutes };
+      return {
+        enabled: parsed.enabled,
+        delayMinutes: parsed.delayMinutes,
+      };
     }
 
     console.error("Stored app lock settings are invalid.");
-    return { delayMinutes: 0 };
+    return { enabled: false, delayMinutes: 0 };
   } catch (error) {
     console.error("Could not read app lock settings.", error);
-    return { delayMinutes: 0 };
+    return { enabled: false, delayMinutes: 0 };
   }
 };
 
@@ -93,6 +100,10 @@ export const registerBiometric = async () => {
       optionsJSON: options,
     });
   } catch (error) {
+    if (error instanceof Error) {
+      console.error("Registration error name:", error.name);
+      console.error("Registration error message:", error.message);
+    }
     if (isPreviouslyRegisteredAuthenticator(error)) {
       return { alreadyRegistered: true };
     }
@@ -123,4 +134,17 @@ export const authenticateBiometric = async () => {
 
   assertVerificationSucceeded(verificationResponse.data);
   return verificationResponse.data;
+};
+
+export const disableAppLock = (userId: string) => {
+  const settings = readAppLockSettings(userId);
+
+  if (!settings) return;
+
+  saveAppLockSettings(userId, {
+    ...settings,
+    enabled: false,
+  });
+
+  localStorage.removeItem(appLockBackgroundKey(userId));
 };

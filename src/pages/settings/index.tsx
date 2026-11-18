@@ -30,11 +30,12 @@ import { api } from "#/api/axios";
 import toast from "react-hot-toast";
 import { useEffect, useState } from "react";
 import {
+  authenticateBiometric,
+  disableAppLock as disableStoredAppLock,
   readAppLockSettings,
   registerBiometric,
-  removeAppLockSettings,
-  requestAppLock,
   saveAppLockSettings,
+  type AppLockSettings,
 } from "#/biometrics";
 
 const APP_LOCK_DURATIONS = [
@@ -55,22 +56,25 @@ const Settings = () => {
   const { mode, toggle } = useThemeStore();
   const { permission, requestPermission } = useNotificationPermission();
   const userId = useAuthStore((state) => state.user?.id);
-  const [appLockDelay, setAppLockDelay] = useState<number | null>(() =>
-    userId ? (readAppLockSettings(userId)?.delayMinutes ?? null) : null,
+  const [appLockSettings, setAppLockSettings] =
+    useState<AppLockSettings | null>(() =>
+      userId ? readAppLockSettings(userId) : null,
   );
   const [isDurationDialogOpen, setIsDurationDialogOpen] = useState(false);
   const [bioLoading, setBioLoading] = useState(false);
+
+  const appLockEnabled = appLockSettings?.enabled ?? false;
 
   const notificationsEnabled = permission === "granted";
 
   useEffect(() => {
     if (!userId) {
-      setAppLockDelay(null);
+      setAppLockSettings(null);
       return;
     }
 
     const updateAppLockDelay = () => {
-      setAppLockDelay(readAppLockSettings(userId)?.delayMinutes ?? null);
+      setAppLockSettings(readAppLockSettings(userId));
     };
 
     updateAppLockDelay();
@@ -94,37 +98,93 @@ const Settings = () => {
     if (!userId || bioLoading) return;
 
     setBioLoading(true);
+
     try {
-      const isFirstSetup = appLockDelay === null;
+      const currentSettings = readAppLockSettings(userId);
+
+      // Only register during the first setup.
+      const isFirstSetup = currentSettings === null;
+
       let authenticatorAlreadyRegistered = false;
+
       if (isFirstSetup) {
         const registration = await registerBiometric();
+
         authenticatorAlreadyRegistered = registration.alreadyRegistered;
       }
 
-      saveAppLockSettings(userId, { delayMinutes });
-      setAppLockDelay(delayMinutes);
+      const nextSettings = {
+        enabled: currentSettings?.enabled ?? true,
+        delayMinutes,
+      };
+      saveAppLockSettings(userId, nextSettings);
+
+      setAppLockSettings(nextSettings);
       setIsDurationDialogOpen(false);
+
       toast.success(
         isFirstSetup && authenticatorAlreadyRegistered
           ? "Your existing authenticator is ready. App lock is enabled."
           : isFirstSetup
             ? "App lock enabled on this device."
-          : "App lock duration updated.",
+            : nextSettings.enabled
+              ? "App lock duration updated."
+              : "App lock duration saved.",
       );
     } catch (error) {
-      setAppLockDelay(
-        readAppLockSettings(userId)?.delayMinutes ?? null,
-      );
-      console.error("Could not enable app lock.", error);
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Could not enable app lock. Please try again.",
-      );
+      toast.error("Could not enable app lock.");
+
+      // toast.error(
+      //   error instanceof Error
+      //     ? error.message
+      //     : "Could not enable app lock. Please try again.",
+      // );
     } finally {
       setBioLoading(false);
     }
+  };
+
+  const enableAppLock = () => {
+    if (!userId || bioLoading) return;
+
+    const currentSettings = readAppLockSettings(userId);
+    if (!currentSettings) {
+      setIsDurationDialogOpen(true);
+      return;
+    }
+
+    if (currentSettings.enabled) return;
+
+    const nextSettings = { ...currentSettings, enabled: true };
+    saveAppLockSettings(userId, nextSettings);
+    setAppLockSettings(nextSettings);
+    toast.success("App lock enabled.");
+  };
+
+  const turnOffAppLock = async () => {
+    if (!userId || !appLockSettings || bioLoading) return;
+
+    setBioLoading(true);
+    try {
+      await authenticateBiometric();
+      disableStoredAppLock(userId);
+      setAppLockSettings({ ...appLockSettings, enabled: false });
+      toast.success("App lock disabled.");
+    } catch (error) {
+      console.error("Could not verify identity to disable app lock.", error);
+      toast.error("Could not verify identity to disable app lock.");
+    } finally {
+      setBioLoading(false);
+    }
+  };
+
+  const toggleAppLock = () => {
+    if (appLockEnabled) {
+      void turnOffAppLock();
+      return;
+    }
+
+    enableAppLock();
   };
 
   const enableNotifications = async () => {
@@ -288,34 +348,35 @@ const Settings = () => {
             </Toggle>
           </Item>
           <Divider />
-          <Item as="div">
+          <LockItem as="div">
             <IconWrap $bg="#F0E9FF" $c="#7656D6">
               <LockKeyhole size={18} />
             </IconWrap>
             <Lbl>App lock</Lbl>
-            <LockAction
-              type="button"
-              onClick={openAppLockSettings}
-              aria-label="Configure app lock"
-            >
-              {appLockDelay === null
-                ? "Set up"
-                : appLockDelay === 0
-                  ? "Immediately"
-                  : `${appLockDelay} min`}
-            </LockAction>
-            {appLockDelay !== null && (
-              <PreviewLockButton
+            {appLockSettings && (
+              <LockAction
                 type="button"
-                onClick={requestAppLock}
-                aria-label="Lock Chatz now"
-                title="Lock Chatz now"
+                onClick={openAppLockSettings}
+                aria-label="Change app lock duration"
               >
-                <LockNowIcon size={15} />
-                Lock now
-              </PreviewLockButton>
+                {appLockSettings.delayMinutes === 0
+                  ? "Immediately"
+                  : `${appLockSettings.delayMinutes} min`}
+              </LockAction>
             )}
-          </Item>
+            <Toggle
+              $on={appLockEnabled}
+              onClick={toggleAppLock}
+              disabled={bioLoading}
+              aria-label="Toggle app lock"
+              aria-pressed={appLockEnabled}
+            >
+              <Knob
+                animate={{ left: appLockEnabled ? 23 : 3 }}
+                transition={{ type: "spring", stiffness: 500, damping: 32 }}
+              />
+            </Toggle>
+          </LockItem>
 
           {/* <Divider />
         <Item>
@@ -353,45 +414,33 @@ const Settings = () => {
         }}
       >
         <DialogTitle>Lock app after</DialogTitle>
-        <DialogDescription>
-          {appLockDelay === null &&
-            " The first time, your device will ask you to register a fingerprint or passkey."}
-        </DialogDescription>
+        {!appLockSettings && (
+          <DialogDescription>
+            The first time, your device will ask you to register a fingerprint
+            or passkey.
+          </DialogDescription>
+        )}
         <DurationOptions role="radiogroup" aria-label="App lock duration">
           {APP_LOCK_DURATIONS.map(({ value, label }) => (
             <DurationOption
               key={value}
               type="button"
               role="radio"
-              aria-checked={appLockDelay === value}
-              $selected={appLockDelay === value}
+              aria-checked={appLockSettings?.delayMinutes === value}
+              $selected={appLockSettings?.delayMinutes === value}
               disabled={bioLoading}
               onClick={() => void saveAppLockDuration(value)}
             >
               <span>{label}</span>
-              <RadioMark $selected={appLockDelay === value} />
+              <RadioMark $selected={appLockSettings?.delayMinutes === value} />
             </DurationOption>
           ))}
         </DurationOptions>
         <DialogActions>
-          {appLockDelay !== null && (
-            <DisableLockButton
-              type="button"
-              onClick={() => {
-                if (!userId) return;
-                removeAppLockSettings(userId);
-                setAppLockDelay(null);
-                setIsDurationDialogOpen(false);
-              }}
-              disabled={bioLoading}
-            >
-              Turn off app lock
-            </DisableLockButton>
-          )}
           {bioLoading && (
             <SavingStatus role="status" aria-live="polite">
               <ButtonSpinner size={16} aria-hidden="true" />
-              {appLockDelay === null
+              {!appLockSettings
                 ? "Registering device and enabling app lock…"
                 : "Saving app lock duration…"}
             </SavingStatus>
@@ -462,6 +511,10 @@ const Item = styled.button`
   padding: 16px 18px;
   text-align: left;
 `;
+
+const LockItem = styled(Item)`
+  flex-wrap: wrap;
+`;
 const IconWrap = styled.div<{ $bg: string; $c: string }>`
   width: 36px;
   height: 36px;
@@ -519,25 +572,6 @@ const LockAction = styled.button`
   font-size: 11px;
   font-weight: 700;
   white-space: nowrap;
-`;
-
-const PreviewLockButton = styled.button`
-  min-height: 32px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 5px;
-  padding: 6px 8px;
-  border-radius: 10px;
-  background: ${({ theme }) => theme.colors.secondarySoft};
-  color: ${({ theme }) => theme.colors.secondary};
-  font-size: 11px;
-  font-weight: 700;
-  white-space: nowrap;
-`;
-
-const LockNowIcon = styled(LockKeyhole)`
-  flex-shrink: 0;
 `;
 
 const DialogTitle = styled.h2`
@@ -606,14 +640,6 @@ const SavingStatus = styled.p`
   gap: 8px;
   color: ${({ theme }) => theme.colors.textSecondary};
   font-size: 13px;
-`;
-
-const DisableLockButton = styled.button`
-  width: 100%;
-  padding: 10px;
-  color: ${({ theme }) => theme.colors.error};
-  font-size: 14px;
-  font-weight: 700;
 `;
 
 const ButtonSpinner = styled(LoaderCircle)`
